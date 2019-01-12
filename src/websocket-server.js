@@ -18,13 +18,23 @@ wss.on('connection', (ws, req) => {
   console.log(ip);
   console.log(`A user has joined room ${req.url}`);
   ws.on('message', (message) => {
-    console.log(`received: ${message}`);
+    let receivedMessage = deserializeMessage(message);
+    console.log(`received: ${receivedMessage.text}`);
     wss.clients.forEach((client) => {
       if (client.chatRoom === req.url) {
-        client.send(message);
+        client.send(receivedMessage.text);
       }
     });
   });
+
+  ws.on('close', (code) => {
+    console.log(`A user has left the room with code ${code}`);
+  });
+
 });
+
+function deserializeMessage(message) {
+  return JSON.parse(message.toString());
+}
 
 export default server;
