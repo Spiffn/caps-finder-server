@@ -1,6 +1,7 @@
 import server from './websocket-server';
+import configs from './configs';
 
-const port = process.env.PORT || 8081;
+const { port } = configs;
 
 server.listen(port, () => {
   console.log(`http/ws server listening on ${port}`);

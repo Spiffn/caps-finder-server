@@ -2,13 +2,16 @@ import express from 'express';
 import { json } from 'body-parser';
 import cors from 'cors';
 import morgan from 'morgan';
+import ip from 'ip';
+import configs from './configs';
 import roomManager from './services/roomManager';
 
 const app = express();
 app.use(morgan('combined'));
 app.use(json());
 const allowedOrigins = [
-  'http://localhost:8080',
+  'http://localhost:8080/',
+  `http://${ip.address()}:8080`,
 ];
 app.use(cors({
   origin(origin, callback) {
@@ -24,10 +27,14 @@ app.use(cors({
   },
 }));
 
+function getWsUrl(id) {
+  return `ws://${ip.address()}:${configs.port}/${id}`;
+}
+
 // creates a room
 app.get('/room/new', (req, res) => {
   roomManager.getNewRoom()
-    .then(id => res.send({ id }));
+    .then(id => res.send({ id, url: getWsUrl(id) }));
 });
 
 // gets list of all the rooms

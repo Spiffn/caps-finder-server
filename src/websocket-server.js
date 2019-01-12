@@ -9,32 +9,36 @@ const wss = new WebSocketServer({
   server,
 });
 
+function deserializeMessage(message) {
+  return JSON.parse(message.toString());
+}
+
 // Also mount the app here
 server.on('request', app);
 wss.on('connection', (ws, req) => {
-  const ip = req.connection.remoteAddress;
-  ws.chatRoom = req.url;
-  console.log(req.url);
-  console.log(ip);
-  console.log(`A user has joined room ${req.url}`);
-  ws.on('message', (message) => {
-    let receivedMessage = deserializeMessage(message);
-    console.log(`received: ${receivedMessage.text}`);
+  function broadcast(roomId, data) {
     wss.clients.forEach((client) => {
-      if (client.chatRoom === req.url) {
-        client.send(receivedMessage.text);
+      if (client.chatRoom === roomId) {
+        client.send(data);
       }
     });
+  }
+
+  const ip = req.connection.remoteAddress;
+  const roomId = req.url.substring(1);
+  ws.chatRoom = roomId;
+  console.log(req.url);
+  console.log(ip);
+  console.log(`A user has joined room ${roomId}`);
+  ws.on('message', (message) => {
+    const receivedMessage = deserializeMessage(message);
+    console.log(`received: ${receivedMessage.text}`);
+    broadcast(roomId, receivedMessage.text);
   });
 
   ws.on('close', (code) => {
     console.log(`A user has left the room with code ${code}`);
   });
-
 });
-
-function deserializeMessage(message) {
-  return JSON.parse(message.toString());
-}
 
 export default server;
