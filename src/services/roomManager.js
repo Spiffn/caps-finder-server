@@ -1,15 +1,27 @@
 import generate from 'adjective-adjective-animal';
 
 export default {
-  rooms: new Set(['all']),
+  rooms: {
+    all: {
+      created: new Date().getDate(),
+      users: {},
+    },
+  },
+
+  hasRoom(roomId) {
+    return Object.prototype.hasOwnProperty.call(this.rooms, roomId);
+  },
 
   async getNewRoom() {
-    let result = await generate('pascal');
-    while (this.rooms.has(result)) {
+    let roomId = await generate('pascal');
+    while (this.hasRoom(roomId)) {
       // eslint-disable-next-line no-await-in-loop
-      result = await generate('pascal'); // generates random AdjectiveAdjectiveAnimal
+      roomId = await generate('pascal'); // generates random AdjectiveAdjectiveAnimal
     }
-    this.rooms.add(result);
-    return result;
+    this.rooms[roomId] = {
+      created: new Date().getDate(),
+      users: {},
+    };
+    return roomId;
   },
 };

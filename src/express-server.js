@@ -13,6 +13,7 @@ const allowedOrigins = [
   'http://localhost:8080/',
   `http://${ip.address()}:8080`,
 ];
+
 app.use(cors({
   origin(origin, callback) {
     // allow requests with no origin
@@ -44,7 +45,7 @@ app.get('/rooms', (req, res) => {
 
 // checks if room exists
 app.get('/room/has/:id', (req, res) => {
-  const exists = roomManager.rooms.has(req.params.id);
+  const exists = roomManager.hasRoom(req.params.id);
   res.send({ exists });
 });
 
