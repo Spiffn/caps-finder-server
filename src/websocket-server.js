@@ -29,7 +29,6 @@ function getUserId() {
 server.on('request', app);
 wss.on('connection', (ws, req) => {
   function broadcast(roomId, data) {
-    console.log(roomManager.rooms[roomId].users);
     Object.values(roomManager.rooms[roomId].users).forEach((client) => {
       console.log(client.roomId);
       client.send(serialize(data));
