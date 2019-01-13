@@ -2,6 +2,7 @@ import { Server as WebSocketServer } from 'ws';
 import generate from 'adjective-adjective-animal';
 import app from './express-server';
 import roomManager from './services/roomManager';
+import READYSTATES from './constants';
 
 const server = require('http').createServer();
 
@@ -27,7 +28,10 @@ server.on('request', app);
 wss.on('connection', async (ws, req) => {
   function broadcast(roomId, data) {
     Object.values(roomManager.getUsersByRoomId(roomId)).forEach((client) => {
-      client.send(serialize(data));
+      // Broadcast only to open connections LOL
+      if(client.readyState == READYSTATES.OPEN) {
+        client.send(serialize(data));
+      }
     });
   }
 
