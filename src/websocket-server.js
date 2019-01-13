@@ -48,8 +48,7 @@ wss.on('connection', (ws, req) => {
   // eslint-disable-next-line no-param-reassign
   ws.chatRoom = roomId;
 
-  // TODO: Add validation for properties
-  roomManager.rooms[roomId].users[ws.userId] = ws;
+  roomManager.addUserToRoom(ws.userId, roomId, ws);
 
   console.log(req.url);
   console.log(ip);
@@ -66,7 +65,7 @@ wss.on('connection', (ws, req) => {
 
   ws.on('close', (code) => {
     console.log(`A user has left the room with code ${code}`);
-    delete roomManager.rooms[roomId][ws.userId];
+    roomManager.deleteUserFromRoom(ws.userId, roomId);
   });
 });
 
