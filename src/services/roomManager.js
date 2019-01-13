@@ -12,6 +12,22 @@ export default {
     return Object.prototype.hasOwnProperty.call(this.rooms, roomId);
   },
 
+  getRoomsList() {
+    return Object.keys(this.rooms);
+  },
+
+  getUsersByRoomId(roomId) {
+    return this.rooms[roomId];
+  },
+
+  addUserToRoom(userId, roomId, ws) {
+    this.getUsersByRoomId(roomId)[userId] = ws;
+  },
+
+  deleteUserFromRoom(userId, roomId) {
+    delete this.getUsersByRoomId(roomId)[userId];
+  },
+
   async createRoom() {
     let roomId = await generate('pascal');
     while (this.hasRoom(roomId)) {
