@@ -46,12 +46,18 @@ wss.on('connection', async (ws, req) => {
 
   roomManager.addUserToRoom(ws.userId, roomId, ws);
 
-  console.log(req.url);
-  console.log(ip);
-  console.log(`User ${ws.userId} has joined room ${roomId}`);
+
+  // Initial broadcast; announce new user to room
+  broadcast(roomId, {
+    type: 'announcement',
+    timestamp: new Date().getTime(),
+    user: ws.userId,
+    payload: `${ws.userId} has joined the game!`,
+  });
+
   ws.on('message', (message) => {
     const receivedMessage = deserialize(message);
-    if (['message', 'status'].includes(receivedMessage.type)) {
+    if (['message', 'status', 'announcement'].includes(receivedMessage.type)) {
       console.log(`received: ${receivedMessage.payload}`);
       broadcast(roomId, {
         type: receivedMessage.type,
@@ -66,6 +72,12 @@ wss.on('connection', async (ws, req) => {
 
   ws.on('close', (code) => {
     console.log(`A user has left the room with code ${code}`);
+    broadcast(roomId, {
+      type: 'announcement',
+      timestamp: new Date().getTime(),
+      user: ws.userId,
+      payload: `${ws.userId} has left the game.`,
+    })
     roomManager.deleteUserFromRoom(ws.userId, roomId);
   });
 });
