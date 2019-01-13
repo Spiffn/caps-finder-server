@@ -17,6 +17,10 @@ export default {
   },
 
   getUsersByRoomId(roomId) {
+    return this.getRoom(roomId).users;
+  },
+
+  getRoom(roomId) {
     return this.rooms[roomId];
   },
 

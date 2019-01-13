@@ -1,7 +1,7 @@
 import { Server as WebSocketServer } from 'ws';
 import app from './express-server';
 import roomManager from './services/roomManager';
-
+import generate from 'adjective-adjective-animal';
 
 const server = require('http').createServer();
 
@@ -18,16 +18,13 @@ function serialize(message) {
   return JSON.stringify(message);
 }
 
-let id = 0;
-
-function getUserId() {
-  id += 1;
-  return id;
+async function generateUsername(roomId) {
+  return await generate({ adjectives: 1, format: "pascal" })
 }
 
 // Also mount the app here
 server.on('request', app);
-wss.on('connection', (ws, req) => {
+wss.on('connection', async (ws, req) => {
   function broadcast(roomId, data) {
     Object.values(roomManager.rooms[roomId].users).forEach((client) => {
       console.log(client.roomId);
@@ -43,16 +40,17 @@ wss.on('connection', (ws, req) => {
   }
 
   // eslint-disable-next-line no-param-reassign
-  ws.userId = getUserId();
+  ws.userId = await generateUsername(roomId);
 
   // eslint-disable-next-line no-param-reassign
   ws.chatRoom = roomId;
 
+  console.log(roomManager.rooms);
   roomManager.addUserToRoom(ws.userId, roomId, ws);
 
   console.log(req.url);
   console.log(ip);
-  console.log(`A user has joined room ${roomId}`);
+  console.log(`User ${ws.userId} has joined room ${roomId}`);
   ws.on('message', (message) => {
     const receivedMessage = deserialize(message);
     console.log(`received: ${receivedMessage.text}`);
