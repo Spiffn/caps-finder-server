@@ -49,4 +49,9 @@ app.get('/room/has/:id', (req, res) => {
   res.send({ exists });
 });
 
+// gets room message history
+app.get('/room/:id/history', (req, res) => {
+  res.send({ history: roomManager.getRoom(req.params.id).history });
+});
+
 export default app;

@@ -5,6 +5,7 @@ export default {
     all: {
       created: new Date().getDate(),
       users: {},
+      history: [],
     },
   },
 
@@ -41,6 +42,7 @@ export default {
     this.rooms[roomId] = {
       created: new Date().getDate(),
       users: {},
+      history: [],
     };
     return roomId;
   },
