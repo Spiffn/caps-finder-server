@@ -1,7 +1,7 @@
 import { Server as WebSocketServer } from 'ws';
+import generate from 'adjective-adjective-animal';
 import app from './express-server';
 import roomManager from './services/roomManager';
-import generate from 'adjective-adjective-animal';
 
 const server = require('http').createServer();
 
@@ -19,15 +19,14 @@ function serialize(message) {
 }
 
 async function generateUsername(roomId) {
-  return await generate({ adjectives: 1, format: "pascal" })
+  return await generate({ adjectives: 1, format: 'pascal' });
 }
 
 // Also mount the app here
 server.on('request', app);
 wss.on('connection', async (ws, req) => {
   function broadcast(roomId, data) {
-    Object.values(roomManager.rooms[roomId].users).forEach((client) => {
-      console.log(client.roomId);
+    Object.values(roomManager.getUsersByRoomId(roomId)).forEach((client) => {
       client.send(serialize(data));
     });
   }
@@ -45,7 +44,6 @@ wss.on('connection', async (ws, req) => {
   // eslint-disable-next-line no-param-reassign
   ws.chatRoom = roomId;
 
-  console.log(roomManager.rooms);
   roomManager.addUserToRoom(ws.userId, roomId, ws);
 
   console.log(req.url);
@@ -53,12 +51,17 @@ wss.on('connection', async (ws, req) => {
   console.log(`User ${ws.userId} has joined room ${roomId}`);
   ws.on('message', (message) => {
     const receivedMessage = deserialize(message);
-    console.log(`received: ${receivedMessage.text}`);
-    broadcast(roomId, {
-      type: 'message',
-      user: ws.userId,
-      payload: receivedMessage.text,
-    });
+    if (['message', 'status'].includes(receivedMessage.type)) {
+      console.log(`received: ${receivedMessage.payload}`);
+      broadcast(roomId, {
+        type: receivedMessage.type,
+        timestamp: new Date().getTime(),
+        user: ws.userId,
+        payload: receivedMessage.payload,
+      });
+    } else {
+      console.log(receivedMessage);
+    }
   });
 
   ws.on('close', (code) => {
