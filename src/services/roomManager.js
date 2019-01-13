@@ -12,7 +12,7 @@ export default {
     return Object.prototype.hasOwnProperty.call(this.rooms, roomId);
   },
 
-  async getNewRoom() {
+  async createRoom() {
     let roomId = await generate('pascal');
     while (this.hasRoom(roomId)) {
       // eslint-disable-next-line no-await-in-loop

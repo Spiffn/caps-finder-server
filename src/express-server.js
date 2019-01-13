@@ -10,7 +10,7 @@ const app = express();
 app.use(morgan('combined'));
 app.use(json());
 const allowedOrigins = [
-  'http://localhost:8080/',
+  'http://localhost:8080',
   `http://${ip.address()}:8080`,
 ];
 
@@ -34,7 +34,7 @@ function getWsUrl(id) {
 
 // creates a room
 app.get('/room/new', (req, res) => {
-  roomManager.getNewRoom()
+  roomManager.createRoom()
     .then(id => res.send({ id, url: getWsUrl(id) }));
 });
 
