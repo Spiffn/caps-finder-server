@@ -40,7 +40,7 @@ app.get('/room/new', (req, res) => {
 
 // gets list of all the rooms
 app.get('/rooms', (req, res) => {
-  res.send({ rooms: Array.from(roomManager.rooms) });
+  res.send({ rooms: roomManager.getRoomsList() });
 });
 
 // checks if room exists
