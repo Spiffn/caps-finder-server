@@ -19,8 +19,12 @@ function serialize(message) {
   return JSON.stringify(message);
 }
 
-async function generateUsername(roomId) {
-  return await generate({ adjectives: 1, format: 'pascal' });
+function generateUsername() {
+  return new Promise(async (resolve, reject) => {
+    await generate({ adjectives: 1, format: 'pascal' })
+      .then(data => resolve(data))
+      .catch(error => reject(error));
+  });
 }
 
 // Also mount the app here
@@ -31,13 +35,12 @@ wss.on('connection', async (ws, req) => {
     roomManager.getRoom(roomId).history.push(data);
     Object.values(roomManager.getUsersByRoomId(roomId)).forEach((client) => {
       // Broadcast only to open connections LOL
-      if (client.readyState == READYSTATES.OPEN) {
+      if (client.readyState === READYSTATES.OPEN) {
         client.send(serialize(data));
       }
     });
   }
 
-  const ip = req.connection.remoteAddress;
   const roomId = req.url.substring(1);
 
   if (!roomManager.hasRoom(roomId)) {
@@ -45,7 +48,7 @@ wss.on('connection', async (ws, req) => {
   }
 
   // eslint-disable-next-line no-param-reassign
-  ws.userId = await generateUsername(roomId);
+  ws.userId = await generateUsername();
 
   // eslint-disable-next-line no-param-reassign
   ws.chatRoom = roomId;
