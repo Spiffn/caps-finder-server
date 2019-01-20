@@ -1,14 +1,14 @@
 import Deck from 'deck';
 
 const ranks = '3456789TJQKA2';
-const suits = 'HSDC'
+const suits = 'HSDC';
 
 function generateCards() {
   const allCards = [];
   [...ranks]
-  .forEach(rank => [...suits]
-    .forEach(suit => allCards.push(`${rank}${suit}`)));
-  return allCards;      
+    .forEach(rank => [...suits]
+      .forEach(suit => allCards.push(`${rank}${suit}`)));
+  return allCards;
 }
 
 class Game {
@@ -19,13 +19,13 @@ class Game {
     this.players = [];
     this.currentPlayerIndex = 0;
     this.cardsPlayed = [];
-
   }
 
   dealCardsToPlayers() {
     let lastDealt = 0;
-    while(this.deck.remaining()) {
-      players[lastDealt++ % players.length].hand.push(this.deck.draw());
+    while (this.deck.remaining()) {
+      this.players[lastDealt % this.players.length].hand.push(this.deck.draw());
+      lastDealt += 1;
     }
   }
 
@@ -39,25 +39,25 @@ class Game {
     this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
   }
 
-  //TODO: Implement me !
+  // TODO: Implement me !
   playCard() {
-    let mode = this.getMode();
+    const mode = this.getMode();
     if (mode == null) {
       // Play anything
-      // If player *only* has a 2. XDXD                
+      // If player *only* has a 2. XDXD
     } else if (mode === 1) {
-     // Play single card 
+      // Play single card
     } else if (mode === 2) {
       // Play doubles
     } else if (mode === 3) {
       // Play triples
     }
-    
-    throw "Some Booty Once Told Me";
+
+    throw new Error('Some Booty Once Told Me');
   }
 
   getMode() {
-    if(this.cardsPlayed.length === 0) {
+    if (this.cardsPlayed.length === 0) {
       return null;
     }
     const lastCards = this.cardsPlayed[this.cardsPlayed - 1];
@@ -67,7 +67,7 @@ class Game {
   // only if first game
   startGame() {
     this.deck.shuffle();
-    if(this.gamesPlayed === 0 || true) {
+    if (this.gamesPlayed === 0) {
       this.dealCardsToPlayers();
       this.currentPlayerIndex = this.getPlayerIndexFor('3C');
     } else {
@@ -77,22 +77,21 @@ class Game {
 
   // TODO: IMPLEMENT ME!
   endGame() {
-    this.gamesPlayed++;        
-    console.log("All your cards are belong to us");
+    this.gamesPlayed += 1;
+    console.log('All your cards are belong to us');
   }
-  
+
   getPlayerIndexFor(target) {
-    for(let i = 0; i < this.players.length; i++) {
-      let hand = this.players[i].hand;
-      for(let j = 0; j < hand.length; j++) {
+    for (let i = 0; i < this.players.length; i += 1) {
+      const { hand } = this.players[i].hand;
+      for (let j = 0; j < hand.length; j += 1) {
         if (hand[j] === target) {
           return i;
         }
       }
     }
-    throw 404;
-  }  
-
+    throw new Error(404);
+  }
 }
 
 export default Game;
