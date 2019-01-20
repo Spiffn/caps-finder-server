@@ -1,4 +1,4 @@
-import Deck from 'deck';
+import Deck from 'card-deck';
 
 const ranks = '3456789TJQKA2';
 const suits = 'HSDC';
