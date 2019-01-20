@@ -27,6 +27,8 @@ async function generateUsername(roomId) {
 server.on('request', app);
 wss.on('connection', async (ws, req) => {
   function broadcast(roomId, data) {
+    // Store the room chat history
+    roomManager.getRoom(roomId).history.push(data);
     Object.values(roomManager.getUsersByRoomId(roomId)).forEach((client) => {
       // Broadcast only to open connections LOL
       if(client.readyState == READYSTATES.OPEN) {
@@ -49,7 +51,6 @@ wss.on('connection', async (ws, req) => {
   ws.chatRoom = roomId;
 
   roomManager.addUserToRoom(ws.userId, roomId, ws);
-
 
   // Initial broadcast; announce new user to room
   broadcast(roomId, {
