@@ -31,7 +31,7 @@ wss.on('connection', async (ws, req) => {
     roomManager.getRoom(roomId).history.push(data);
     Object.values(roomManager.getUsersByRoomId(roomId)).forEach((client) => {
       // Broadcast only to open connections LOL
-      if(client.readyState == READYSTATES.OPEN) {
+      if (client.readyState == READYSTATES.OPEN) {
         client.send(serialize(data));
       }
     });
@@ -82,7 +82,7 @@ wss.on('connection', async (ws, req) => {
       timestamp: new Date().getTime(),
       user: ws.userId,
       payload: `${ws.userId} has left the game.`,
-    })
+    });
     roomManager.deleteUserFromRoom(ws.userId, roomId);
   });
 });

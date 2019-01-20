@@ -11,6 +11,10 @@ function generateCards() {
   return allCards;
 }
 
+function getRank(card) {
+  return card.substring(0, 1);
+}
+
 class Game {
   constructor() {
     this.deck = new Deck(generateCards());
@@ -29,11 +33,29 @@ class Game {
     }
   }
 
-  // TODO: Implement me!!!
-  // LETS GOO
-  checkForCompletion() {
-
+  canHandComplete(hand) {
+    const lastPlayed = this.cardsPlayed[this.cardsPlayed.length - 1];
+    const currentRank = getRank(lastPlayed[0]);
+    const matching = hand.filter(card => card.startsWith(currentRank));
+    if (!matching) {
+      return false;
+    }
+    if (this.getMode() === 1) {
+      let inARow = 1;
+      let indexToCheck = this.cardsPlayed.length - 2;
+      while (indexToCheck >= 0) {
+        if (this.cardsPlayed[indexToCheck][0].startsWith(currentRank)) {
+          inARow += 1;
+          indexToCheck -= 1;
+        } else {
+          break;
+        }
+      }
+      return inARow + matching.length === 4;
+    }
+    return this.getMode() + matching.length === 4;
   }
+
 
   skipPlayer() {
     this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
