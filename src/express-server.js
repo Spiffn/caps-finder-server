@@ -3,6 +3,7 @@ import { json } from 'body-parser';
 import cors from 'cors';
 import morgan from 'morgan';
 import ip from 'ip';
+import generate from 'adjective-adjective-animal';
 import configs from './configs';
 import roomManager from './services/roomManager';
 
@@ -32,6 +33,14 @@ function getWsUrl(id) {
   return `ws://${ip.address()}:${configs.port}/${id}`;
 }
 
+function generateUsername() {
+  return new Promise(async (resolve, reject) => {
+    await generate({ adjectives: 1, format: 'pascal' })
+      .then(data => resolve(data))
+      .catch(error => reject(error));
+  });
+}
+
 // creates a room
 app.get('/room/new', (req, res) => {
   roomManager.createRoom()
@@ -52,6 +61,13 @@ app.get('/room/has/:id', (req, res) => {
 // gets room message history
 app.get('/room/:id/history', (req, res) => {
   res.send({ history: roomManager.getRoom(req.params.id).history });
+});
+
+// creates a username
+// TODO: Verify username is unique
+app.get('/username/new', async (req, res) => {
+  const username = await generateUsername();
+  res.send({ username });
 });
 
 export default app;
