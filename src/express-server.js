@@ -70,4 +70,10 @@ app.get('/username/new', async (req, res) => {
   res.send({ username });
 });
 
+app.get('/room/:roomId/user/:userId', (req, res) => {
+  const users = roomManager.getUsersByRoomId(req.params.roomId);
+  const userExists = Object.prototype.hasOwnProperty.call(users, req.params.userId);
+  res.send({ userExists });
+});
+
 export default app;
