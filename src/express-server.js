@@ -12,6 +12,10 @@ app.use(json());
 const allowedOrigins = [
   'http://localhost:8080',
   `http://${ip.address()}:8080`,
+  'http://localhost:80',
+  `http://${ip.address()}:80`,
+  'http://localhost',
+  `http://${ip.address()}`,
 ];
 
 app.use(cors({
