@@ -1,4 +1,5 @@
 import generate from 'adjective-adjective-animal';
+import Game from './game';
 
 export default {
   rooms: {
@@ -43,6 +44,7 @@ export default {
       created: new Date().getDate(),
       users: {},
       history: [],
+      game: new Game(),
     };
     return roomId;
   },

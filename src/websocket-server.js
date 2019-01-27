@@ -19,8 +19,18 @@ function serialize(message) {
   return JSON.stringify(message);
 }
 
-async function generateUsername(roomId) {
-  return await generate({ adjectives: 1, format: 'pascal' });
+function getQueryParameters(url) {
+  const queryStrings = url.substring(1).split('?')[1];
+  const splitQueryStrings = queryStrings.split('&');
+  const queryParameters = {};
+  splitQueryStrings.forEach((queryString) => {
+    const splitQueryString = queryString.split('=');
+    const key = splitQueryString[0];
+    const value = splitQueryString[1];
+    queryParameters[key] = value;
+  });
+
+  return queryParameters;
 }
 
 // Also mount the app here
@@ -31,21 +41,20 @@ wss.on('connection', async (ws, req) => {
     roomManager.getRoom(roomId).history.push(data);
     Object.values(roomManager.getUsersByRoomId(roomId)).forEach((client) => {
       // Broadcast only to open connections LOL
-      if(client.readyState == READYSTATES.OPEN) {
+      if (client.readyState === READYSTATES.OPEN) {
         client.send(serialize(data));
       }
     });
   }
-
-  const ip = req.connection.remoteAddress;
-  const roomId = req.url.substring(1);
+  const queryParameters = getQueryParameters(req.url);
+  const roomId = queryParameters.room;
 
   if (!roomManager.hasRoom(roomId)) {
     ws.close();
   }
 
   // eslint-disable-next-line no-param-reassign
-  ws.userId = await generateUsername(roomId);
+  ws.userId = queryParameters.user;
 
   // eslint-disable-next-line no-param-reassign
   ws.chatRoom = roomId;
@@ -82,7 +91,7 @@ wss.on('connection', async (ws, req) => {
       timestamp: new Date().getTime(),
       user: ws.userId,
       payload: `${ws.userId} has left the game.`,
-    })
+    });
     roomManager.deleteUserFromRoom(ws.userId, roomId);
   });
 });
