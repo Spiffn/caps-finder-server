@@ -1,4 +1,5 @@
 import Deck from 'card-deck';
+import Player from './player';
 
 const ranks = '3456789TJQKA2';
 const suits = 'HSDC';
@@ -25,12 +26,22 @@ class Game {
     this.cardsPlayed = [];
   }
 
+  addPlayer(name) {
+    this.players.push(new Player(name));
+  }
+
   dealCardsToPlayers() {
     let lastDealt = 0;
     while (this.deck.remaining()) {
-      this.players[lastDealt % this.players.length].hand.push(this.deck.draw());
+      this.players[lastDealt % this.players.length].addCard(this.deck.draw());
       lastDealt += 1;
     }
+  }
+
+  printHands() {
+    this.players.forEach((player) => {
+      console.log(`${player.name}: ${player.hand}`);
+    });
   }
 
   canHandComplete(hand) {
@@ -105,7 +116,7 @@ class Game {
 
   getPlayerIndexFor(target) {
     for (let i = 0; i < this.players.length; i += 1) {
-      const { hand } = this.players[i].hand;
+      const { hand } = this.players[i];
       for (let j = 0; j < hand.length; j += 1) {
         if (hand[j] === target) {
           return i;
