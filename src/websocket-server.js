@@ -1,5 +1,5 @@
 import { Server as WebSocketServer } from 'ws';
-import generate from 'adjective-adjective-animal';
+import url from 'url';
 import app from './express-server';
 import roomManager from './services/roomManager';
 import READYSTATES from './constants';
@@ -19,20 +19,6 @@ function serialize(message) {
   return JSON.stringify(message);
 }
 
-function getQueryParameters(url) {
-  const queryStrings = url.substring(1).split('?')[1];
-  const splitQueryStrings = queryStrings.split('&');
-  const queryParameters = {};
-  splitQueryStrings.forEach((queryString) => {
-    const splitQueryString = queryString.split('=');
-    const key = splitQueryString[0];
-    const value = splitQueryString[1];
-    queryParameters[key] = value;
-  });
-
-  return queryParameters;
-}
-
 // Also mount the app here
 server.on('request', app);
 wss.on('connection', async (ws, req) => {
@@ -46,7 +32,8 @@ wss.on('connection', async (ws, req) => {
       }
     });
   }
-  const queryParameters = getQueryParameters(req.url);
+
+  const queryParameters = url.parse(req.url, true).query;
   const roomId = queryParameters.room;
 
   if (!roomManager.hasRoom(roomId)) {
