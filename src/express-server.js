@@ -2,7 +2,6 @@ import express from 'express';
 import { json } from 'body-parser';
 import cors from 'cors';
 import morgan from 'morgan';
-import ip from 'ip';
 import generate from 'adjective-adjective-animal';
 import configs from './configs';
 import roomManager from './services/roomManager';
@@ -12,11 +11,9 @@ app.use(morgan('combined'));
 app.use(json());
 const allowedOrigins = [
   'http://localhost:8080',
-  `http://${ip.address()}:8080`,
   'http://localhost:80',
-  `http://${ip.address()}:80`,
   'http://localhost',
-  `http://${ip.address()}`,
+  'https://www.tonkatsusoba.com',
 ];
 
 app.use(cors({
