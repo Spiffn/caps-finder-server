@@ -11,8 +11,4 @@ game.addPlayer('Lawrence');
 
 game.startGame();
 
-game.printHands();
-
-const currentPlayerName = game.players[game.currentPlayerIndex].name;
-
-console.log(`It is ${currentPlayerName}'s turn`);
+game.printStatus();

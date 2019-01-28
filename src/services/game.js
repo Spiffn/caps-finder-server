@@ -1,4 +1,5 @@
 import Deck from 'card-deck';
+import _ from 'lodash';
 import Player from './player';
 
 const ranks = '3456789TJQKA2';
@@ -16,6 +17,24 @@ function getRank(card) {
   return card.substring(0, 1);
 }
 
+function isLegalPlay(cards) {
+  if (!cards) {
+    return false;
+  }
+  const rank = cards[0].substring(0, 1);
+  // play only one 2 at a time;
+  if (rank === '2' && cards.length !== 1) {
+    return false;
+  }
+  // check all cards are same rank
+  if (!cards.every(card => card.startsWith(rank))) {
+    return false;
+  }
+  return true;
+}
+
+export { isLegalPlay };
+
 class Game {
   constructor() {
     this.deck = new Deck(generateCards());
@@ -24,6 +43,52 @@ class Game {
     this.players = [];
     this.currentPlayerIndex = 0;
     this.cardsPlayed = [];
+  }
+
+  get currentPlayer() {
+    return this.players[this.currentPlayerIndex];
+  }
+
+  get mode() {
+    if (!this.lastCards) {
+      return null;
+    }
+    return this.lastCards.length;
+  }
+
+  get lastCards() {
+    if (this.cardsPlayed.length === 0) {
+      return null;
+    }
+    return this.cardsPlayed[this.cardsPlayed.length - 1];
+  }
+
+  get lastRank() {
+    if (!this.lastCards) {
+      return null;
+    }
+    return this.lastCards[0].substring(0, 1);
+  }
+
+  get numInARow() {
+    if (!this.mode) {
+      return 0;
+    }
+    // we could just check all cards with a rank matching lastRank
+    if (this.mode === 1) {
+      let inARow = 1;
+      let indexToCheck = this.cardsPlayed.length - 2;
+      while (indexToCheck >= 0) {
+        if (this.cardsPlayed[indexToCheck][0].startsWith(this.lastRank)) {
+          inARow += 1;
+          indexToCheck -= 1;
+        } else {
+          break;
+        }
+      }
+      return inARow;
+    }
+    return this.mode;
   }
 
   addPlayer(name) {
@@ -38,10 +103,12 @@ class Game {
     }
   }
 
-  printHands() {
+  printStatus() {
     this.players.forEach((player) => {
       console.log(`${player.name}: ${player.hand}`);
     });
+    console.log(`cards played: ${this.cardsPlayed}`);
+    console.log(`It is ${this.currentPlayer.name}'s turn`);
   }
 
   canHandComplete(hand) {
@@ -51,7 +118,7 @@ class Game {
     if (!matching) {
       return false;
     }
-    if (this.getMode() === 1) {
+    if (this.mode === 1) {
       let inARow = 1;
       let indexToCheck = this.cardsPlayed.length - 2;
       while (indexToCheck >= 0) {
@@ -64,7 +131,38 @@ class Game {
       }
       return inARow + matching.length === 4;
     }
-    return this.getMode() + matching.length === 4;
+    return this.mode + matching.length === 4;
+  }
+
+  isPlayable(cards) {
+    if (!isLegalPlay(cards)) {
+      return false;
+    }
+    if (this.isCompletion(cards)) {
+      return true;
+    }
+    const rank = cards[0].substring(0, 1);
+    if (!this.mode) {
+      return rank !== '2';
+    }
+    if (rank === '2') {
+      return true;
+    }
+    if (cards.length !== this.mode) {
+      return false;
+    }
+    return ranks.indexOf(rank) >= ranks.indexOf(this.lastRank);
+  }
+
+  isCompletion(cards) {
+    if (!isLegalPlay(cards)) {
+      return false;
+    }
+    if (!this.numInARow && cards.length !== 4) {
+      return false;
+    }
+    const rank = cards[0].substring(0, 1);
+    return this.lastRank === rank && this.numInARow + cards.length === 4;
   }
 
 
@@ -72,29 +170,49 @@ class Game {
     this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
   }
 
-  // TODO: Implement me !
-  playCard() {
-    const mode = this.getMode();
-    if (mode == null) {
-      // Play anything
-      // If player *only* has a 2. XDXD
-    } else if (mode === 1) {
-      // Play single card
-    } else if (mode === 2) {
-      // Play doubles
-    } else if (mode === 3) {
-      // Play triples
-    }
-
-    throw new Error('Some Booty Once Told Me');
+  bomb() {
+    this.cardsPlayed = [];
   }
 
-  getMode() {
-    if (this.cardsPlayed.length === 0) {
-      return null;
+  // TODO: Implement me !
+  playCards(playerIndex, cards) {
+    const player = this.players[playerIndex];
+
+    if (_.difference(cards, this.hand).length !== 0) {
+      throw Error(`${player.name} does not have the cards ${cards}`);
     }
-    const lastCards = this.cardsPlayed[this.cardsPlayed - 1];
-    return lastCards.length;
+
+    if (!this.isPlayable(cards)) {
+      throw Error(`${cards} cannot be played`);
+    }
+
+    if (this.isCompletion(player.hand)) {
+      player.removeCards(cards);
+      this.bomb();
+      return;
+    }
+
+    if (this.currentPlayerIndex !== playerIndex) {
+      throw Error(`it's not your turn ${playerIndex}!`);
+    }
+
+    const rank = cards[0].substring(0, 1);
+
+    if (rank === '2') {
+      this.bomb();
+      return;
+    }
+
+    if (this.mode === 1 && this.lastRank === rank) {
+      this.nextTurn();
+    }
+
+    this.nextTurn();
+    this.cardsPlayed.push(cards);
+  }
+
+  nextTurn() {
+    this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
   }
 
   // only if first game

@@ -8,21 +8,21 @@ export default class Player {
 
   setHand(hand) {
     if (hand.constructor !== Array) {
-      throw Error('some booty');
+      throw TypeError('some booty');
     }
     this.hand = hand;
   }
 
   addCard(card) {
     if (typeof (card) !== 'string') {
-      throw Error('not a card');
+      throw TypeError('not a card');
     }
     // TODO: check if card is a valid card;
     this.hand.push(card);
   }
 
   removeCards(cards) {
-    if (_.difference(cards, this.hand).length === 0) {
+    if (_.difference(cards, this.hand).length !== 0) {
       throw Error('cards not in hand');
     }
     _.remove(this.hand, n => cards.includes(n));
