@@ -7,6 +7,7 @@
     "start": "babel-node src/app.js",
     "serve": "nodemon --exec babel-node src/app.js",
     "test": "jest --coverage",
+    "test:watch": "jest --watch",
     "game": "babel-node src/demo/capitalism.js"
   },
   "keywords": [],

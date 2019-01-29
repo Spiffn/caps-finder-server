@@ -39,10 +39,13 @@ class Game {
   constructor() {
     this.deck = new Deck(generateCards());
     this.gamesPlayed = 0;
-    this.deck.shuffle();
     this.players = [];
     this.currentPlayerIndex = 0;
+    this.lastPlayedIndex = null;
     this.cardsPlayed = [];
+    this.finished = [];
+    this.scum = [];
+    this.isFirstPlay = true;
   }
 
   get currentPlayer() {
@@ -105,10 +108,17 @@ class Game {
 
   printStatus() {
     this.players.forEach((player) => {
+      player.hand.sort();
       console.log(`${player.name}: ${player.hand}`);
     });
-    console.log(`cards played: ${this.cardsPlayed}`);
+    console.log('cards played');
+    console.log(this.cardsPlayed);
+    const { mode, numInARow, lastRank } = this;
+    console.log({ mode });
+    console.log({ numInARow });
+    console.log({ lastRank });
     console.log(`It is ${this.currentPlayer.name}'s turn`);
+    // console.log(`${this.players[this.lastPlayedIndex].name} last played`);
   }
 
   canHandComplete(hand) {
@@ -165,20 +175,19 @@ class Game {
     return this.lastRank === rank && this.numInARow + cards.length === 4;
   }
 
-
-  skipPlayer() {
-    this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
-  }
-
   bomb() {
     this.cardsPlayed = [];
+  }
+
+  skip() {
+    this.nextTurn();
   }
 
   // TODO: Implement me !
   playCards(playerIndex, cards) {
     const player = this.players[playerIndex];
 
-    if (_.difference(cards, this.hand).length !== 0) {
+    if (_.difference(cards, this.hand).length === 0) {
       throw Error(`${player.name} does not have the cards ${cards}`);
     }
 
@@ -186,39 +195,61 @@ class Game {
       throw Error(`${cards} cannot be played`);
     }
 
-    if (this.isCompletion(player.hand)) {
+    if (this.isFirstPlay) {
+      if (!cards.includes('3C')) {
+        throw Error('First play must include the 3 of clubs');
+      }
+      this.isFirstPlay = false;
+    }
+
+    if (this.isCompletion(cards)) {
       player.removeCards(cards);
       this.bomb();
+      this.lastPlayedIndex = playerIndex;
+      this.currentPlayerIndex = playerIndex;
       return;
     }
 
     if (this.currentPlayerIndex !== playerIndex) {
-      throw Error(`it's not your turn ${playerIndex}!`);
+      throw Error(`it's not your turn ${this.players[playerIndex].name}!`);
     }
 
     const rank = cards[0].substring(0, 1);
 
     if (rank === '2') {
+      player.removeCards(cards);
       this.bomb();
+      this.lastPlayedIndex = playerIndex;
       return;
     }
+
+    this.lastPlayedIndex = playerIndex;
 
     if (this.mode === 1 && this.lastRank === rank) {
       this.nextTurn();
     }
 
-    this.nextTurn();
+    player.removeCards(cards);
     this.cardsPlayed.push(cards);
+    this.nextTurn();
   }
 
   nextTurn() {
     this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+    if (this.currentPlayerIndex === this.lastPlayedIndex) {
+      this.bomb();
+    }
+    if (this.finished.includes(this.currentPlayerIndex)) {
+      this.nextTurn();
+    }
   }
 
   // only if first game
   startGame() {
+    this.deck = new Deck(generateCards());
     this.deck.shuffle();
     if (this.gamesPlayed === 0) {
+      this.isFirstPlay = true;
       this.dealCardsToPlayers();
       this.currentPlayerIndex = this.getPlayerIndexFor('3C');
     } else {

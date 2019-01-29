@@ -161,3 +161,41 @@ describe('Game isCompletion', () => {
     expect(game.isCompletion(['3H', '3C'])).toBe(true);
   });
 });
+
+describe('Game isPlayable', () => {
+  test('is true when playing a larger card', () => {
+    const game = new Game();
+    game.cardsPlayed = [['3H'], ['4H'], ['5H']];
+    expect(game.isPlayable(['6H'])).toBe(true);
+  });
+
+  test('is true when playing an equal card', () => {
+    const game = new Game();
+    game.cardsPlayed = [['3H'], ['4H'], ['5H']];
+    expect(game.isPlayable(['5D'])).toBe(true);
+  });
+
+  test('is false when playing a smaller card', () => {
+    const game = new Game();
+    game.cardsPlayed = [['3H'], ['4H'], ['5H']];
+    expect(game.isPlayable(['4D'])).toBe(false);
+  });
+
+  test('is true when playing a 2', () => {
+    const game = new Game();
+    game.cardsPlayed = [['3H'], ['4H'], ['AH']];
+    expect(game.isPlayable(['2D'])).toBe(true);
+  });
+
+  test('is false when playing doubles on singles', () => {
+    const game = new Game();
+    game.cardsPlayed = [['3H'], ['4H'], ['5H']];
+    expect(game.isPlayable(['6D', '6C'])).toBe(false);
+  });
+
+  test('is true when playing doubles on doubles', () => {
+    const game = new Game();
+    game.cardsPlayed = [['3H', '3D']];
+    expect(game.isPlayable(['4H', '4D'])).toBe(true);
+  });
+});
