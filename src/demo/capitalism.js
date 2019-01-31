@@ -12,6 +12,10 @@ game.startGame();
 
 game.printStatus();
 
+game.on('stateChange', (change) => {
+  console.log(`advancing to ${change.next}`);
+});
+
 stdin.addListener('data', (d) => {
   let index = -1;
   let cards = [];

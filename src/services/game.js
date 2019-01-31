@@ -1,7 +1,8 @@
 import Deck from 'card-deck';
 import _ from 'lodash';
-import EventEmitter from 'events';
 import Player from './player';
+
+const EventEmitter = require('events');
 
 const ranks = '3456789TJQKA2';
 const suits = 'HSDC';
@@ -35,10 +36,10 @@ function isLegalPlay(cards) {
 }
 
 const GameStateEnum = {
-  STANDBY: 0,
-  PICK_HAND: 1,
-  EXCHANGE: 2,
-  PLAYING: 3,
+  STANDBY: 'STANDBY',
+  PICK_HAND: 'PICK HAND',
+  EXCHANGE: 'EXCHANGE',
+  PLAYING: 'PLAYING',
 };
 
 export { isLegalPlay };
@@ -300,7 +301,7 @@ class Game extends EventEmitter {
   }
 
   pickHand(playerIndex, pileIndex) {
-    if (this.gameState != GameStateEnum.PICK_HAND) {
+    if (this.gameState !== GameStateEnum.PICK_HAND) {
       throw Error('NICE TRY!!');
     }
     const pickingPlayerIndex = this.players.length - this.needyPlayers.length;
@@ -345,6 +346,7 @@ class Game extends EventEmitter {
 
   advanceGameState(state) {
     this.emit('stateChange', { prev: this.gameState, next: state });
+    // console.log(`advancing state from ${this.gameState} to ${state}`);
     this.gameState = state;
   }
 
