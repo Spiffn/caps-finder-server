@@ -33,6 +33,13 @@ function isLegalPlay(cards) {
   return true;
 }
 
+const GameStateEnum = {
+  STANDBY: 0,
+  PICK_HAND: 1,
+  EXCHANGE: 2,
+  PLAYING: 3,
+};
+
 export { isLegalPlay };
 
 class Game {
@@ -46,6 +53,7 @@ class Game {
     this.finished = [];
     this.scum = [];
     this.isFirstPlay = true;
+    this.gameState = GameStateEnum.STANDBY;
   }
 
   get currentPlayer() {
@@ -185,6 +193,10 @@ class Game {
 
   // TODO: Implement me !
   playCards(playerIndex, cards) {
+    if (this.gameState !== GameStateEnum.PLAYING) {
+      throw Error('We haven\'t started playing yet!');
+    }
+
     const player = this.players[playerIndex];
 
     if (_.difference(cards, this.hand).length === 0) {
@@ -252,6 +264,7 @@ class Game {
       this.isFirstPlay = true;
       this.dealCardsToPlayers();
       this.currentPlayerIndex = this.getPlayerIndexFor('3C');
+      this.gameState = GameStateEnum.PLAYING;
     } else {
       // TODO: IMPLEMENT ME!
     }
