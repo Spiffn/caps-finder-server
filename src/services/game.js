@@ -1,5 +1,6 @@
 import Deck from 'card-deck';
 import _ from 'lodash';
+import EventEmitter from 'events';
 import Player from './player';
 
 const ranks = '3456789TJQKA2';
@@ -42,8 +43,26 @@ const GameStateEnum = {
 
 export { isLegalPlay };
 
-class Game {
+function dealCards(numPiles) {
+  const deckie = new Deck(generateCards());
+  deckie.shuffle();
+
+  let pilesOfAss = [];
+
+  pilesOfAss = _.map(new Array(numPiles), () => []);
+
+  let lastDealt = 0;
+  while (deckie.remaining()) {
+    pilesOfAss[lastDealt % numPiles].push(deckie.draw());
+    lastDealt += 1;
+  }
+
+  return pilesOfAss;
+}
+
+class Game extends EventEmitter {
   constructor() {
+    super();
     this.deck = new Deck(generateCards());
     this.gamesPlayed = 0;
     this.players = [];
@@ -52,8 +71,10 @@ class Game {
     this.cardsPlayed = [];
     this.finished = [];
     this.scum = [];
+    this.piles = [];
     this.isFirstPlay = true;
-    this.gameState = GameStateEnum.STANDBY;
+    this.gameState = null;
+    this.advanceGameState(GameStateEnum.STANDBY);
   }
 
   get currentPlayer() {
@@ -102,16 +123,16 @@ class Game {
     return this.mode;
   }
 
-  addPlayer(name) {
-    this.players.push(new Player(name));
+  get hierarchy() {
+    return _.merge(this.finished, this.scum);
   }
 
-  dealCardsToPlayers() {
-    let lastDealt = 0;
-    while (this.deck.remaining()) {
-      this.players[lastDealt % this.players.length].addCard(this.deck.draw());
-      lastDealt += 1;
-    }
+  get needyPlayers() {
+    return _.filter(this.players, player => player.hands === []);
+  }
+
+  addPlayer(name) {
+    this.players.push(new Player(name));
   }
 
   printStatus() {
@@ -185,10 +206,12 @@ class Game {
 
   bomb() {
     this.cardsPlayed = [];
+    this.emit('bomb');
   }
 
   skip() {
     this.nextTurn();
+    this.emit('skip');
   }
 
   // TODO: Implement me !
@@ -251,29 +274,84 @@ class Game {
     if (this.currentPlayerIndex === this.lastPlayedIndex) {
       this.bomb();
     }
-    if (this.finished.includes(this.currentPlayerIndex)) {
+    this.emit('nextTurn', this.currentPlayerIndex);
+    if (this.hierarchy.includes(this.currentPlayerIndex)) {
       this.nextTurn();
     }
   }
 
-  // only if first game
   startGame() {
-    this.deck = new Deck(generateCards());
-    this.deck.shuffle();
+    const numPlayers = this.players.length;
+    this.piles = dealCards(numPlayers);
+
     if (this.gamesPlayed === 0) {
       this.isFirstPlay = true;
-      this.dealCardsToPlayers();
+      // Deal piles to players
+      this.players.forEach((player) => {
+        player.setHand(this.piles.shift());
+      });
       this.currentPlayerIndex = this.getPlayerIndexFor('3C');
-      this.gameState = GameStateEnum.PLAYING;
+      this.advanceGameState(GameStateEnum.PLAYING);
     } else {
-      // TODO: IMPLEMENT ME!
+      this.isFirstPlay = false;
+      this.emit('reveal', _.map(this.piles, pile => pile[0]));
+      this.reorderPlayers();
     }
   }
 
-  // TODO: IMPLEMENT ME!
+  pickHand(playerIndex, pileIndex) {
+    if (this.gameState != GameStateEnum.PICK_HAND) {
+      throw Error('NICE TRY!!');
+    }
+    const pickingPlayerIndex = this.players.length - this.needyPlayers.length;
+    if (playerIndex !== pickingPlayerIndex) {
+      throw Error('Nice try');
+    }
+    // TODO: check pileIndex is valid
+    // TODO: check playerIndex is valid
+    this.players[playerIndex].setHand(this.piles[pileIndex]);
+    if (!this.needyPlayers) {
+      // Time to give up your cards, scum bum
+      this.advanceGameState(GameStateEnum.EXCHANGE);
+      this.exchangeSetup();
+    }
+  }
+
+  exchangeSetup() {
+    this.exchangers = {
+      prez: this.players[0],
+      scum: this.players[this.players.length - 1],
+    }
+    
+    if (this.players.length > 3) {
+      this.exchangers.vicePrez = this.players[1];
+      this.exchangers.viceScum = this.players[this.players.length - 2];
+    }
+  }
+
+  reorderPlayers() {
+    this.players = _.map(this.hierarchy, idx => this.players[idx]);
+  }
+
+  finishExchange() {
+    if (this.gameState !== GameStateEnum.EXCHANGE) {
+      throw Error('Bandersnatched');
+    }
+    this.exchangers = null;
+    this.finished = [];
+    this.scum = [];
+    this.advanceGameState(GameStateEnum.PLAYING);
+  }
+
+  advanceGameState(state) {
+    this.emit('stateChange', { prev: this.gameState, next: state });
+    this.gameState = state;
+  }
+
   endGame() {
     this.gamesPlayed += 1;
     console.log('All your cards are belong to us');
+    this.emit('end', this.gamesPlayed);
   }
 
   getPlayerIndexFor(target) {
