@@ -67,7 +67,7 @@ class Game extends EventEmitter {
     this.deck = new Deck(generateCards());
     this.gamesPlayed = 0;
     this.players = [];
-    this.currentPlayerIndex = 0;
+    this.currentPlayerIndex = -1;
     this.lastPlayedIndex = null;
     this.cardsPlayed = [];
     this.finished = [];
@@ -297,6 +297,8 @@ class Game extends EventEmitter {
       this.isFirstPlay = false;
       this.emit('reveal', _.map(this.piles, pile => pile[0]));
       this.reorderPlayers();
+      // President resides at index 0 of reordered players
+      this.currentPlayerIndex = 0;
     }
   }
 
