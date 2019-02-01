@@ -4,6 +4,10 @@ const stdin = process.openStdin();
 
 const game = new CapsGame();
 
+game.on('stateChange', (change) => {
+  console.log(`advancing to ${change.next}`);
+});
+
 game.addPlayer('James');
 game.addPlayer('Tim');
 game.addPlayer('Lawrence');
@@ -11,10 +15,6 @@ game.addPlayer('Lawrence');
 game.startGame();
 
 game.printStatus();
-
-game.on('stateChange', (change) => {
-  console.log(`advancing to ${change.next}`);
-});
 
 stdin.addListener('data', (d) => {
   let index = -1;

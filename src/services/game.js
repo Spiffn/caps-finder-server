@@ -1,8 +1,7 @@
 import Deck from 'card-deck';
 import _ from 'lodash';
+import EventEmitter from 'events';
 import Player from './player';
-
-const EventEmitter = require('events');
 
 const ranks = '3456789TJQKA2';
 const suits = 'HSDC';
@@ -324,8 +323,8 @@ class Game extends EventEmitter {
     this.exchangers = {
       prez: this.players[0],
       scum: this.players[this.players.length - 1],
-    }
-    
+    };
+
     if (this.players.length > 3) {
       this.exchangers.vicePrez = this.players[1];
       this.exchangers.viceScum = this.players[this.players.length - 2];
@@ -348,7 +347,6 @@ class Game extends EventEmitter {
 
   advanceGameState(state) {
     this.emit('stateChange', { prev: this.gameState, next: state });
-    // console.log(`advancing state from ${this.gameState} to ${state}`);
     this.gameState = state;
   }
 
