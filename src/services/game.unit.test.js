@@ -1,3 +1,4 @@
+import { EventEmitter } from 'events';
 import Game, { isLegalPlay } from './game';
 
 test('Test that 2 is a legal play', () => {
@@ -32,9 +33,9 @@ describe('A new game', () => {
     expect(game.players.length).toBe(0);
   });
 
-  test('has a player index of 0', () => {
+  test('has a player index of -1', () => {
     const game = new Game();
-    expect(game.currentPlayerIndex).toBe(0);
+    expect(game.currentPlayerIndex).toBe(-1);
   });
 
   test('has no cards played', () => {
@@ -197,5 +198,32 @@ describe('Game isPlayable', () => {
     const game = new Game();
     game.cardsPlayed = [['3H', '3D']];
     expect(game.isPlayable(['4H', '4D'])).toBe(true);
+  });
+});
+
+describe('Game startGame', () => {
+  let game;
+  beforeEach(() => {
+    game = new Game();
+    game.addPlayer('Lawrence');
+    game.addPlayer('Timothy');
+    game.addPlayer('James');
+  });
+
+  test('sets the first game played', () => {
+    game.startGame();
+    expect(game.isFirstPlay).toBeTruthy();
+    expect(game.currentPlayerIndex).toBeGreaterThan(-1);
+    expect(game.piles).toHaveLength(0);
+    expect(game.gameState).toEqual('PLAYING');
+  });
+
+  test('sets subsequent games played', () => {
+    game.gamesPlayed = 1;
+    game.on('reveal', () => {});
+    game.startGame();
+    expect(game.isFirstPlay).toBeFalsy();
+    expect(game.currentPlayerIndex).toEqual(0);
+    expect(game.eventNames()).toContain('reveal');
   });
 });
