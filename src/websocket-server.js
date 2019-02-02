@@ -1,11 +1,12 @@
 import { Server as WebSocketServer } from 'ws';
 import url from 'url';
+import http from 'http';
 import app from './express-server';
 import PubSub from './lib/PubSub';
 import roomManager from './services/roomManager';
 import READYSTATES from './constants';
 
-const server = require('http').createServer();
+const server = http.createServer();
 
 // Create web socket server on top of a regular http server
 const wss = new WebSocketServer({
