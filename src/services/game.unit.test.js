@@ -1,4 +1,3 @@
-import { EventEmitter } from 'events';
 import Game, { isLegalPlay } from './game';
 
 test('Test that 2 is a legal play', () => {

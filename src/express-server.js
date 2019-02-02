@@ -2,6 +2,7 @@ import express from 'express';
 import { json } from 'body-parser';
 import cors from 'cors';
 import morgan from 'morgan';
+import ip from 'ip';
 import generate from 'adjective-adjective-animal';
 import configs from './configs';
 import roomManager from './services/roomManager';
@@ -44,24 +45,24 @@ function generateUsername() {
 
 // creates a room
 app.get('/room/new', (req, res) => {
-  roomManager.createRoom()
+  roomManager.createNewRoom()
     .then(id => res.send({ id, url: getWsUrl(id) }));
 });
 
 // gets list of all the rooms
 app.get('/rooms', (req, res) => {
-  res.send({ rooms: roomManager.getRoomsList() });
+  res.send({ rooms: Object.keys(roomManager.rooms) });
 });
 
 // checks if room exists
 app.get('/room/has/:id', (req, res) => {
-  const exists = roomManager.hasRoom(req.params.id);
+  const exists = roomManager.rooms[req.params.id];
   res.send({ exists });
 });
 
 // gets room message history
 app.get('/room/:id/history', (req, res) => {
-  res.send({ history: roomManager.getRoom(req.params.id).history });
+  res.send({ history: roomManager.rooms[req.params.id].history });
 });
 
 // creates a username
@@ -71,6 +72,7 @@ app.get('/username/new', async (req, res) => {
   res.send({ username });
 });
 
+// we should deprecate this
 app.get('/room/:roomId/user/:userId', (req, res) => {
   const users = roomManager.getUsersByRoomId(req.params.roomId);
   const userExists = Object.prototype.hasOwnProperty.call(users, req.params.userId);

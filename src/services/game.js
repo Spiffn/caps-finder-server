@@ -41,6 +41,8 @@ const GameStateEnum = {
   PLAYING: 'PLAYING',
 };
 
+export { GameStateEnum };
+
 export { isLegalPlay };
 
 function dealCards(numPiles) {
@@ -68,13 +70,13 @@ class Game extends EventEmitter {
     this.players = [];
     this.currentPlayerIndex = -1;
     this.lastPlayedIndex = null;
-    this.cardsPlayed = [];
     this.finished = [];
     this.scum = [];
     this.piles = [];
     this.isFirstPlay = true;
     this.gameState = null;
     this.advanceGameState(GameStateEnum.STANDBY);
+    this.cardsPlayed = [];
   }
 
   get currentPlayer() {
@@ -99,26 +101,15 @@ class Game extends EventEmitter {
     if (!this.lastCards) {
       return null;
     }
-    return this.lastCards[0].substring(0, 1);
+    return getRank(this.lastCards[0]);
   }
 
   get numInARow() {
     if (!this.mode) {
       return 0;
     }
-    // we could just check all cards with a rank matching lastRank
     if (this.mode === 1) {
-      let inARow = 1;
-      let indexToCheck = this.cardsPlayed.length - 2;
-      while (indexToCheck >= 0) {
-        if (this.cardsPlayed[indexToCheck][0].startsWith(this.lastRank)) {
-          inARow += 1;
-          indexToCheck -= 1;
-        } else {
-          break;
-        }
-      }
-      return inARow;
+      return _.filter(this.cardsPlayed, x => x[0].startsWith(this.lastRank)).length;
     }
     return this.mode;
   }
@@ -131,13 +122,24 @@ class Game extends EventEmitter {
     return _.filter(this.players, player => player.hands === []);
   }
 
+  get gameStatus() {
+    return {
+      state: this.gameState,
+      cardsPlayed: this.cardsPlayed,
+      currentPlayer: this.currentPlayer.name,
+      players: _.map(this.players, player => ({
+        name: player.name,
+        handSize: player.hand.length,
+      })),
+    };
+  }
+
   addPlayer(name) {
-    this.players.push(new Player(name));
+    this.scum.push(new Player(name));
   }
 
   printStatus() {
     this.players.forEach((player) => {
-      player.hand.sort();
       console.log(`${player.name}: ${player.hand}`);
     });
     console.log('cards played');
@@ -147,30 +149,6 @@ class Game extends EventEmitter {
     console.log({ numInARow });
     console.log({ lastRank });
     console.log(`It is ${this.currentPlayer.name}'s turn`);
-    // console.log(`${this.players[this.lastPlayedIndex].name} last played`);
-  }
-
-  canHandComplete(hand) {
-    const lastPlayed = this.cardsPlayed[this.cardsPlayed.length - 1];
-    const currentRank = getRank(lastPlayed[0]);
-    const matching = hand.filter(card => card.startsWith(currentRank));
-    if (!matching) {
-      return false;
-    }
-    if (this.mode === 1) {
-      let inARow = 1;
-      let indexToCheck = this.cardsPlayed.length - 2;
-      while (indexToCheck >= 0) {
-        if (this.cardsPlayed[indexToCheck][0].startsWith(currentRank)) {
-          inARow += 1;
-          indexToCheck -= 1;
-        } else {
-          break;
-        }
-      }
-      return inARow + matching.length === 4;
-    }
-    return this.mode + matching.length === 4;
   }
 
   isPlayable(cards) {
@@ -206,33 +184,50 @@ class Game extends EventEmitter {
 
   bomb() {
     this.cardsPlayed = [];
-    this.emit('bomb');
+    this.emit('boardUpdate', this.cardsPlayed);
   }
 
-  skip() {
-    this.nextTurn();
-    this.emit('skip');
+  skip(playerName) {
+    if (this.currentPlayer.name === playerName
+      && this.cardsPlayed.length > 0) {
+      this.nextTurn();
+      this.emit('skip');
+    }
   }
 
-  // TODO: Implement me !
+  playCardsByName(playerName, cards) {
+    for (let i = 0; i < this.players.length; i += 1) {
+      const player = this.players[i];
+      if (player.name === playerName) {
+        return this.playCards(i, cards);
+      }
+    }
+    this.emit('error', `${playerName} is not playing`);
+    return null;
+  }
+
   playCards(playerIndex, cards) {
     if (this.gameState !== GameStateEnum.PLAYING) {
-      throw Error('We haven\'t started playing yet!');
+      this.emit('error', 'We haven\'t started playing yet!');
+      return null;
     }
 
     const player = this.players[playerIndex];
 
     if (_.difference(cards, this.hand).length === 0) {
-      throw Error(`${player.name} does not have the cards ${cards}`);
+      this.emit('error', `${player.name} does not have the cards ${cards}`);
+      return null;
     }
 
     if (!this.isPlayable(cards)) {
-      throw Error(`${cards} cannot be played`);
+      this.emit('error', `${cards} cannot be played`);
+      return null;
     }
 
     if (this.isFirstPlay) {
       if (!cards.includes('3C')) {
-        throw Error('First play must include the 3 of clubs');
+        this.emit('error', 'First play must include the 3 of clubs');
+        return null;
       }
       this.isFirstPlay = false;
     }
@@ -242,11 +237,13 @@ class Game extends EventEmitter {
       this.bomb();
       this.lastPlayedIndex = playerIndex;
       this.currentPlayerIndex = playerIndex;
-      return;
+      this.emit('completion', this.cardsPlayed);
+      return player.hand;
     }
 
     if (this.currentPlayerIndex !== playerIndex) {
-      throw Error(`it's not your turn ${this.players[playerIndex].name}!`);
+      this.emit('error', `it's not your turn ${this.players[playerIndex].name}!`);
+      return null;
     }
 
     const rank = cards[0].substring(0, 1);
@@ -255,7 +252,7 @@ class Game extends EventEmitter {
       player.removeCards(cards);
       this.bomb();
       this.lastPlayedIndex = playerIndex;
-      return;
+      return player.hand;
     }
 
     this.lastPlayedIndex = playerIndex;
@@ -267,6 +264,8 @@ class Game extends EventEmitter {
     player.removeCards(cards);
     this.cardsPlayed.push(cards);
     this.nextTurn();
+    this.emit('boardUpdate', this.cardsPlayed);
+    return player.hand;
   }
 
   nextTurn() {
@@ -281,14 +280,20 @@ class Game extends EventEmitter {
   }
 
   startGame() {
+    if (this.gameState !== GameStateEnum.STANDBY) {
+      return;
+    }
+    this.reorderPlayers();
     const numPlayers = this.players.length;
     this.piles = dealCards(numPlayers);
+    this.bomb();
 
     if (this.gamesPlayed === 0) {
       this.isFirstPlay = true;
       // Deal piles to players
       this.players.forEach((player) => {
         player.setHand(this.piles.shift());
+        player.hand.sort();
       });
       this.currentPlayerIndex = this.getPlayerIndexFor('3C');
       this.advanceGameState(GameStateEnum.PLAYING);
@@ -326,13 +331,13 @@ class Game extends EventEmitter {
     };
 
     if (this.players.length > 3) {
-      this.exchangers.vicePrez = this.players[1];
+      [_, this.exchangers.vicePrez] = this.players;
       this.exchangers.viceScum = this.players[this.players.length - 2];
     }
   }
 
   reorderPlayers() {
-    this.players = _.map(this.hierarchy, idx => this.players[idx]);
+    this.players = this.hierarchy;
   }
 
   finishExchange() {
