@@ -29,7 +29,7 @@ const roomManager = {
 
     const room = {
       created: new Date().getDate(),
-      users: {},
+      users: [],
       history,
       controller,
     };
@@ -50,8 +50,14 @@ const roomManager = {
     return roomId;
   },
 
+  addUserToRoom(userId, roomId) {
+    if (!this.getUsersByRoomId(roomId).includes(userId)) {
+      this.getUsersByRoomId(roomId).push(userId);
+    }
+  },
+
   removeRoomIfEmpty(roomId) {
-    if (_.isEmpty(this.rooms[roomId].users)) {
+    if (_.isEmpty(this.getUsersByRoomId(roomId))) {
       delete this.rooms[roomId];
       console.log(`Removed room ${roomId}...`);
     }

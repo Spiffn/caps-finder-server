@@ -26,12 +26,12 @@ PubSub.enable(roomManager);
 // Also mount the app here
 server.on('request', app);
 wss.on('connection', async (ws, req) => {
-  console.log("yeee");
   const queryParameters = url.parse(req.url, true).query;
   const roomId = queryParameters.room;
   const userId = queryParameters.user;
 
   if (!roomManager.rooms[roomId]) {
+    console.log('CLOOOSED');
     ws.close();
     return;
   }
@@ -45,6 +45,8 @@ wss.on('connection', async (ws, req) => {
   const { controller } = roomManager.rooms[roomId];
 
   controller.addPlayer(userId);
+  roomManager.addUserToRoom(userId, roomId);
+
   const userToken = controller.subscribe(userId, (data) => {
     console.log(data);
     ws.send(serialize(data));
