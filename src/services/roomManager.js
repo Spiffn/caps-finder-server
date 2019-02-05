@@ -1,4 +1,5 @@
 import generate from 'adjective-adjective-animal';
+import _ from 'lodash';
 import GameController from './gameController';
 import PubSub from '../lib/PubSub';
 
@@ -47,6 +48,13 @@ const roomManager = {
     }
     this.createRoom(roomId);
     return roomId;
+  },
+
+  removeRoomIfEmpty(roomId) {
+    if (_.isEmpty(this.rooms[roomId].users)) {
+      delete this.rooms[roomId];
+      console.log(`Removed room ${roomId}...`);
+    }
   },
 };
 

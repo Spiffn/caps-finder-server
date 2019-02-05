@@ -26,6 +26,7 @@ PubSub.enable(roomManager);
 // Also mount the app here
 server.on('request', app);
 wss.on('connection', async (ws, req) => {
+  console.log("yeee");
   const queryParameters = url.parse(req.url, true).query;
   const roomId = queryParameters.room;
   const userId = queryParameters.user;
@@ -60,6 +61,7 @@ wss.on('connection', async (ws, req) => {
     controller.removePlayer(userId);
     roomManager.unsubscribe(roomToken);
     controller.unsubscribe(userToken);
+    roomManager.removeRoomIfEmpty(roomId);
   });
 });
 
