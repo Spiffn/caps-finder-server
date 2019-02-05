@@ -45,6 +45,7 @@ wss.on('connection', async (ws, req) => {
 
   controller.addPlayer(userId);
   const userToken = controller.subscribe(userId, (data) => {
+    console.log(data);
     ws.send(serialize(data));
   });
 
@@ -58,7 +59,7 @@ wss.on('connection', async (ws, req) => {
     console.log(`A user has left the room with code ${code}`);
     controller.removePlayer(userId);
     roomManager.unsubscribe(roomToken);
-    roomManager.unsubscribe(userToken);
+    controller.unsubscribe(userToken);
   });
 });
 

@@ -1,4 +1,5 @@
 import EventEmitter from 'events';
+import _ from 'lodash';
 import CapsGame, { GameStateEnum } from './game';
 
 const commandType = {
@@ -47,11 +48,9 @@ class GameController extends EventEmitter {
       return;
     }
     if (gameCommands.includes(command.type)) {
-      let hand = [];
       switch (command.type) {
         case commandType.play:
-          hand = this.game.playCardsByName(userId, command.payload.trim().split(','));
-          this.sendTo(userId, commandType.announcement, hand);
+          this.game.playCardsByName(userId, command.payload.trim().split(','));
           break;
         case commandType.start:
           this.game.startGame();
@@ -67,7 +66,11 @@ class GameController extends EventEmitter {
         timestamp: new Date().getTime(),
         payload: command.type,
       });
-      this.broadcastStatus();
+      try {
+        this.broadcastStatus();
+      } catch (e) {
+        console.log(e);
+      }
     }
   }
 
@@ -90,6 +93,9 @@ class GameController extends EventEmitter {
     if (this.game.gameState === GameStateEnum.STANDBY) {
       this.game.addPlayer(userId);
       this.announce(`${userId} has joined the game!`);
+    } else if (_.mapKeys(this.game.players, player => player.name)[userId]) {
+      this.announce(`${userId} has reconnected!`);
+      this.broadcastStatus();
     } else {
       this.announce(`${userId} is spectating the game!`);
     }
@@ -117,6 +123,7 @@ class GameController extends EventEmitter {
   }
 
   sendTo(userId, type, payload) {
+    console.log(`sending to ${userId}`);
     this.publish(userId, {
       type,
       timestamp: new Date().getTime(),
