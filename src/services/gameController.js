@@ -96,6 +96,7 @@ class GameController extends EventEmitter {
     } else if (_.mapKeys(this.game.players, player => player.name)[userId]) {
       this.announce(`${userId} has reconnected!`);
       this.broadcastStatus();
+      // not sending the cards to the reconecting player somehow
     } else {
       this.announce(`${userId} is spectating the game!`);
     }
