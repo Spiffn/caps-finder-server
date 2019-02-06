@@ -43,14 +43,12 @@ wss.on('connection', async (ws, req) => {
   });
 
   const { controller } = roomManager.rooms[roomId];
+  const userToken = controller.subscribe(userId, (data) => {
+    ws.send(serialize(data));
+  });
 
   controller.addPlayer(userId);
   roomManager.addUserToRoom(userId, roomId);
-
-  const userToken = controller.subscribe(userId, (data) => {
-    console.log(data);
-    ws.send(serialize(data));
-  });
 
   ws.on('message', (data) => {
     const command = deserialize(data);

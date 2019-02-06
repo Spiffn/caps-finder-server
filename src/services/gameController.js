@@ -124,7 +124,6 @@ class GameController extends EventEmitter {
   }
 
   sendTo(userId, type, payload) {
-    console.log(`sending to ${userId}`);
     this.publish(userId, {
       type,
       timestamp: new Date().getTime(),
