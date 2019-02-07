@@ -6,7 +6,9 @@
   "scripts": {
     "start": "babel-node src/app.js",
     "serve": "nodemon --exec babel-node src/app.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest --coverage",
+    "test:watch": "jest --watch",
+    "game": "babel-node src/demo/capitalism.js"
   },
   "keywords": [],
   "author": "",
@@ -18,6 +20,7 @@
     "cors": "^2.8.5",
     "express": "^4.16.4",
     "ip": "^1.1.5",
+    "lodash": "^4.17.11",
     "morgan": "^1.9.1",
     "ws": "^6.1.2"
   },
@@ -28,6 +31,7 @@
     "eslint": "^5.12.0",
     "eslint-config-airbnb-base": "^13.1.0",
     "eslint-plugin-import": "^2.14.0",
+    "jest": "^24.0.0",
     "nodemon": "^1.18.9"
   }
 }

@@ -1,10 +1,12 @@
 import { Server as WebSocketServer } from 'ws';
-import generate from 'adjective-adjective-animal';
+import url from 'url';
+import http from 'http';
 import app from './express-server';
+import PubSub from './lib/PubSub';
 import roomManager from './services/roomManager';
 import READYSTATES from './constants';
 
-const server = require('http').createServer();
+const server = http.createServer();
 
 // Create web socket server on top of a regular http server
 const wss = new WebSocketServer({
@@ -19,80 +21,47 @@ function serialize(message) {
   return JSON.stringify(message);
 }
 
-function getQueryParameters(url) {
-  const queryStrings = url.substring(1).split('?')[1];
-  const splitQueryStrings = queryStrings.split('&');
-  const queryParameters = {};
-  splitQueryStrings.forEach((queryString) => {
-    const splitQueryString = queryString.split('=');
-    const key = splitQueryString[0];
-    const value = splitQueryString[1];
-    queryParameters[key] = value;
-  });
-
-  return queryParameters;
-}
+PubSub.enable(roomManager);
 
 // Also mount the app here
 server.on('request', app);
 wss.on('connection', async (ws, req) => {
-  function broadcast(roomId, data) {
-    // Store the room chat history
-    roomManager.getRoom(roomId).history.push(data);
-    Object.values(roomManager.getUsersByRoomId(roomId)).forEach((client) => {
-      // Broadcast only to open connections LOL
-      if (client.readyState === READYSTATES.OPEN) {
-        client.send(serialize(data));
-      }
-    });
-  }
-  const queryParameters = getQueryParameters(req.url);
+  const queryParameters = url.parse(req.url, true).query;
   const roomId = queryParameters.room;
+  const userId = queryParameters.user;
 
-  if (!roomManager.hasRoom(roomId)) {
+  if (!roomManager.rooms[roomId]) {
+    console.log('CLOOOSED');
     ws.close();
+    return;
   }
 
-  // eslint-disable-next-line no-param-reassign
-  ws.userId = queryParameters.user;
-
-  // eslint-disable-next-line no-param-reassign
-  ws.chatRoom = roomId;
-
-  roomManager.addUserToRoom(ws.userId, roomId, ws);
-
-  // Initial broadcast; announce new user to room
-  broadcast(roomId, {
-    type: 'announcement',
-    timestamp: new Date().getTime(),
-    user: ws.userId,
-    payload: `${ws.userId} has joined the game!`,
+  const roomToken = roomManager.subscribe(roomId, (data) => {
+    if (ws.readyState === READYSTATES.OPEN) {
+      ws.send(serialize(data));
+    }
   });
 
-  ws.on('message', (message) => {
-    const receivedMessage = deserialize(message);
-    if (['message', 'status', 'announcement'].includes(receivedMessage.type)) {
-      console.log(`received: ${receivedMessage.payload}`);
-      broadcast(roomId, {
-        type: receivedMessage.type,
-        timestamp: new Date().getTime(),
-        user: ws.userId,
-        payload: receivedMessage.payload,
-      });
-    } else {
-      console.log(receivedMessage);
-    }
+  const { controller } = roomManager.rooms[roomId];
+  const userToken = controller.subscribe(userId, (data) => {
+    ws.send(serialize(data));
+  });
+
+  controller.addPlayer(userId);
+  roomManager.addUserToRoom(userId, roomId);
+
+  ws.on('message', (data) => {
+    const command = deserialize(data);
+    console.log(command);
+    controller.handleInput(userId, command);
   });
 
   ws.on('close', (code) => {
     console.log(`A user has left the room with code ${code}`);
-    broadcast(roomId, {
-      type: 'announcement',
-      timestamp: new Date().getTime(),
-      user: ws.userId,
-      payload: `${ws.userId} has left the game.`,
-    });
-    roomManager.deleteUserFromRoom(ws.userId, roomId);
+    controller.removePlayer(userId);
+    roomManager.unsubscribe(roomToken);
+    controller.unsubscribe(userToken);
+    roomManager.removeRoomIfEmpty(roomId);
   });
 });
 

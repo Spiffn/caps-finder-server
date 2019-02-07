@@ -1,4 +1,7 @@
 import Deck from 'card-deck';
+import _ from 'lodash';
+import EventEmitter from 'events';
+import Player from './player';
 
 const ranks = '3456789TJQKA2';
 const suits = 'HSDC';
@@ -15,97 +18,352 @@ function getRank(card) {
   return card.substring(0, 1);
 }
 
-class Game {
+function isLegalPlay(cards) {
+  if (!cards) {
+    return false;
+  }
+  const rank = cards[0].substring(0, 1);
+  // play only one 2 at a time;
+  if (rank === '2' && cards.length !== 1) {
+    return false;
+  }
+  // check all cards are same rank
+  if (!cards.every(card => card.startsWith(rank))) {
+    return false;
+  }
+  return true;
+}
+
+const GameStateEnum = {
+  STANDBY: 'STANDBY',
+  PICK_HAND: 'PICK HAND',
+  EXCHANGE: 'EXCHANGE',
+  PLAYING: 'PLAYING',
+};
+
+export { GameStateEnum };
+
+export { isLegalPlay };
+
+function dealCards(numPiles) {
+  const deckie = new Deck(generateCards());
+  deckie.shuffle();
+
+  let pilesOfAss = [];
+
+  pilesOfAss = _.map(new Array(numPiles), () => []);
+
+  let lastDealt = 0;
+  while (deckie.remaining()) {
+    pilesOfAss[lastDealt % numPiles].push(deckie.draw());
+    lastDealt += 1;
+  }
+
+  return pilesOfAss;
+}
+
+class Game extends EventEmitter {
   constructor() {
+    super();
     this.deck = new Deck(generateCards());
     this.gamesPlayed = 0;
-    this.deck.shuffle();
     this.players = [];
-    this.currentPlayerIndex = 0;
+    this.currentPlayerIndex = -1;
+    this.lastPlayedIndex = null;
+    this.finished = [];
+    this.scum = [];
+    this.piles = [];
+    this.isFirstPlay = true;
+    this.gameState = null;
+    this.advanceGameState(GameStateEnum.STANDBY);
     this.cardsPlayed = [];
   }
 
-  dealCardsToPlayers() {
-    let lastDealt = 0;
-    while (this.deck.remaining()) {
-      this.players[lastDealt % this.players.length].hand.push(this.deck.draw());
-      lastDealt += 1;
-    }
+  get currentPlayer() {
+    return this.players[this.currentPlayerIndex];
   }
 
-  canHandComplete(hand) {
-    const lastPlayed = this.cardsPlayed[this.cardsPlayed.length - 1];
-    const currentRank = getRank(lastPlayed[0]);
-    const matching = hand.filter(card => card.startsWith(currentRank));
-    if (!matching) {
-      return false;
+  get mode() {
+    if (!this.lastCards) {
+      return null;
     }
-    if (this.getMode() === 1) {
-      let inARow = 1;
-      let indexToCheck = this.cardsPlayed.length - 2;
-      while (indexToCheck >= 0) {
-        if (this.cardsPlayed[indexToCheck][0].startsWith(currentRank)) {
-          inARow += 1;
-          indexToCheck -= 1;
-        } else {
-          break;
-        }
-      }
-      return inARow + matching.length === 4;
-    }
-    return this.getMode() + matching.length === 4;
+    return this.lastCards.length;
   }
 
-
-  skipPlayer() {
-    this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
-  }
-
-  // TODO: Implement me !
-  playCard() {
-    const mode = this.getMode();
-    if (mode == null) {
-      // Play anything
-      // If player *only* has a 2. XDXD
-    } else if (mode === 1) {
-      // Play single card
-    } else if (mode === 2) {
-      // Play doubles
-    } else if (mode === 3) {
-      // Play triples
-    }
-
-    throw new Error('Some Booty Once Told Me');
-  }
-
-  getMode() {
+  get lastCards() {
     if (this.cardsPlayed.length === 0) {
       return null;
     }
-    const lastCards = this.cardsPlayed[this.cardsPlayed - 1];
-    return lastCards.length;
+    return this.cardsPlayed[this.cardsPlayed.length - 1];
   }
 
-  // only if first game
-  startGame() {
-    this.deck.shuffle();
-    if (this.gamesPlayed === 0) {
-      this.dealCardsToPlayers();
-      this.currentPlayerIndex = this.getPlayerIndexFor('3C');
-    } else {
-      // TODO: IMPLEMENT ME!
+  get lastRank() {
+    if (!this.lastCards) {
+      return null;
+    }
+    return getRank(this.lastCards[0]);
+  }
+
+  get numInARow() {
+    if (!this.mode) {
+      return 0;
+    }
+    if (this.mode === 1) {
+      return _.filter(this.cardsPlayed, x => x[0].startsWith(this.lastRank)).length;
+    }
+    return this.mode;
+  }
+
+  get hierarchy() {
+    return _.merge(this.finished, this.scum);
+  }
+
+  get needyPlayers() {
+    return _.filter(this.players, player => player.hands === []);
+  }
+
+  get gameStatus() {
+    return {
+      state: this.gameState,
+      cardsPlayed: this.cardsPlayed,
+      currentPlayer: this.currentPlayer.name,
+      players: _.map(this.players, player => ({
+        name: player.name,
+        handSize: player.hand.length,
+      })),
+    };
+  }
+
+  addPlayer(name) {
+    this.scum.push(new Player(name));
+  }
+
+  printStatus() {
+    this.players.forEach((player) => {
+      console.log(`${player.name}: ${player.hand}`);
+    });
+    console.log('cards played');
+    console.log(this.cardsPlayed);
+    const { mode, numInARow, lastRank } = this;
+    console.log({ mode });
+    console.log({ numInARow });
+    console.log({ lastRank });
+    console.log(`It is ${this.currentPlayer.name}'s turn`);
+  }
+
+  isPlayable(cards) {
+    if (!isLegalPlay(cards)) {
+      return false;
+    }
+    if (this.isCompletion(cards)) {
+      return true;
+    }
+    const rank = cards[0].substring(0, 1);
+    if (!this.mode) {
+      return rank !== '2';
+    }
+    if (rank === '2') {
+      return true;
+    }
+    if (cards.length !== this.mode) {
+      return false;
+    }
+    return ranks.indexOf(rank) >= ranks.indexOf(this.lastRank);
+  }
+
+  isCompletion(cards) {
+    if (!isLegalPlay(cards)) {
+      return false;
+    }
+    if (!this.numInARow && cards.length !== 4) {
+      return false;
+    }
+    const rank = cards[0].substring(0, 1);
+    return this.lastRank === rank && this.numInARow + cards.length === 4;
+  }
+
+  bomb() {
+    this.cardsPlayed = [];
+    this.emit('boardUpdate', this.cardsPlayed);
+  }
+
+  skip(playerName) {
+    if (this.currentPlayer.name === playerName
+      && this.cardsPlayed.length > 0) {
+      this.nextTurn();
+      this.emit('skip');
     }
   }
 
-  // TODO: IMPLEMENT ME!
+  playCardsByName(playerName, cards) {
+    for (let i = 0; i < this.players.length; i += 1) {
+      const player = this.players[i];
+      if (player.name === playerName) {
+        return this.playCards(i, cards);
+      }
+    }
+    this.emit('error', `${playerName} is not playing`);
+    return null;
+  }
+
+  playCards(playerIndex, cards) {
+    if (this.gameState !== GameStateEnum.PLAYING) {
+      this.emit('error', 'We haven\'t started playing yet!');
+      return null;
+    }
+
+    const player = this.players[playerIndex];
+
+    if (_.difference(cards, this.hand).length === 0) {
+      this.emit('error', `${player.name} does not have the cards ${cards}`);
+      return null;
+    }
+
+    if (!this.isPlayable(cards)) {
+      this.emit('error', `${cards} cannot be played`);
+      return null;
+    }
+
+    if (this.isFirstPlay) {
+      if (!cards.includes('3C')) {
+        this.emit('error', 'First play must include the 3 of clubs');
+        return null;
+      }
+      this.isFirstPlay = false;
+    }
+
+    if (this.isCompletion(cards)) {
+      player.removeCards(cards);
+      this.bomb();
+      this.lastPlayedIndex = playerIndex;
+      this.currentPlayerIndex = playerIndex;
+      this.emit('completion', this.cardsPlayed);
+      return player.hand;
+    }
+
+    if (this.currentPlayerIndex !== playerIndex) {
+      this.emit('error', `it's not your turn ${this.players[playerIndex].name}!`);
+      return null;
+    }
+
+    const rank = cards[0].substring(0, 1);
+
+    if (rank === '2') {
+      player.removeCards(cards);
+      this.bomb();
+      this.lastPlayedIndex = playerIndex;
+      return player.hand;
+    }
+
+    this.lastPlayedIndex = playerIndex;
+
+    if (this.mode === 1 && this.lastRank === rank) {
+      this.nextTurn();
+    }
+
+    player.removeCards(cards);
+    this.cardsPlayed.push(cards);
+    this.nextTurn();
+    this.emit('boardUpdate', this.cardsPlayed);
+    return player.hand;
+  }
+
+  nextTurn() {
+    this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+    if (this.currentPlayerIndex === this.lastPlayedIndex) {
+      this.bomb();
+    }
+    this.emit('nextTurn', this.currentPlayerIndex);
+    if (this.hierarchy.includes(this.currentPlayerIndex)) {
+      this.nextTurn();
+    }
+  }
+
+  startGame() {
+    if (this.gameState !== GameStateEnum.STANDBY) {
+      return;
+    }
+    this.reorderPlayers();
+    const numPlayers = this.players.length;
+    this.piles = dealCards(numPlayers);
+    this.bomb();
+
+    if (this.gamesPlayed === 0) {
+      this.isFirstPlay = true;
+      // Deal piles to players
+      this.players.forEach((player) => {
+        player.setHand(this.piles.shift());
+        player.hand.sort();
+      });
+      this.currentPlayerIndex = this.getPlayerIndexFor('3C');
+      this.advanceGameState(GameStateEnum.PLAYING);
+    } else {
+      this.isFirstPlay = false;
+      this.emit('reveal', _.map(this.piles, pile => pile[0]));
+      this.reorderPlayers();
+      // President resides at index 0 of reordered players
+      this.currentPlayerIndex = 0;
+    }
+  }
+
+  pickHand(playerIndex, pileIndex) {
+    if (this.gameState !== GameStateEnum.PICK_HAND) {
+      throw Error('NICE TRY!!');
+    }
+    const pickingPlayerIndex = this.players.length - this.needyPlayers.length;
+    if (playerIndex !== pickingPlayerIndex) {
+      throw Error('Nice try');
+    }
+    // TODO: check pileIndex is valid
+    // TODO: check playerIndex is valid
+    this.players[playerIndex].setHand(this.piles[pileIndex]);
+    if (!this.needyPlayers) {
+      // Time to give up your cards, scum bum
+      this.advanceGameState(GameStateEnum.EXCHANGE);
+      this.exchangeSetup();
+    }
+  }
+
+  exchangeSetup() {
+    this.exchangers = {
+      prez: this.players[0],
+      scum: this.players[this.players.length - 1],
+    };
+
+    if (this.players.length > 3) {
+      [_, this.exchangers.vicePrez] = this.players;
+      this.exchangers.viceScum = this.players[this.players.length - 2];
+    }
+  }
+
+  reorderPlayers() {
+    this.players = this.hierarchy;
+  }
+
+  finishExchange() {
+    if (this.gameState !== GameStateEnum.EXCHANGE) {
+      throw Error('Bandersnatched');
+    }
+    this.exchangers = null;
+    this.finished = [];
+    this.scum = [];
+    this.advanceGameState(GameStateEnum.PLAYING);
+  }
+
+  advanceGameState(state) {
+    this.emit('stateChange', { prev: this.gameState, next: state });
+    this.gameState = state;
+  }
+
   endGame() {
     this.gamesPlayed += 1;
     console.log('All your cards are belong to us');
+    this.emit('end', this.gamesPlayed);
   }
 
   getPlayerIndexFor(target) {
     for (let i = 0; i < this.players.length; i += 1) {
-      const { hand } = this.players[i].hand;
+      const { hand } = this.players[i];
       for (let j = 0; j < hand.length; j += 1) {
         if (hand[j] === target) {
           return i;
