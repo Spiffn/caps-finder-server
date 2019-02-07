@@ -299,10 +299,12 @@ class Game extends EventEmitter {
       this.advanceGameState(GameStateEnum.PLAYING);
     } else {
       this.isFirstPlay = false;
-      this.emit('reveal', _.map(this.piles, pile => pile[0]));
+      this.advanceGameState(GameStateEnum.EXCHANGE);
+      // Setup relationships between exchangers
       this.reorderPlayers();
-      // President resides at index 0 of reordered players
-      this.currentPlayerIndex = 0;
+      this.exchangeSetup();
+      // Show card at top of each pile
+      this.emit('reveal', _.map(this.piles, pile => pile[0]));
     }
   }
 
@@ -338,6 +340,8 @@ class Game extends EventEmitter {
 
   reorderPlayers() {
     this.players = this.hierarchy;
+    // Player at index 0 is President
+    this.currentPlayerIndex = 0;
   }
 
   finishExchange() {
