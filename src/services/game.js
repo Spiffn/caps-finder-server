@@ -135,7 +135,9 @@ class Game extends EventEmitter {
   }
 
   addPlayer(name) {
-    this.scum.push(new Player(name));
+    if (_.filter(this.scum, s => s.name === name).length === 0) {
+      this.scum.push(new Player(name));
+    }
   }
 
   printStatus() {
