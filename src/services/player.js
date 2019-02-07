@@ -27,4 +27,8 @@ export default class Player {
     }
     _.remove(this.hand, n => cards.includes(n));
   }
+
+  finished() {
+    return this.hand.length === 0;
+  }
 }

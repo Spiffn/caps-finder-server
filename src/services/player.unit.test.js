@@ -61,3 +61,16 @@ describe('Player removeCards', () => {
     expect(player.hand).toEqual(['2C', '3H']);
   });
 });
+
+describe('Player finished', () => {
+  let player;
+  beforeEach(() => {
+    player = new Player('Bob');
+  });
+  test('is true if the player has removed all cards', () => {
+    player.setHand(['AS']);
+    expect(player.finished()).toBeFalsy();
+    player.removeCards(['AS']);
+    expect(player.finished()).toBeTruthy();
+  });
+});
