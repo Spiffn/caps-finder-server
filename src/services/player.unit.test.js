@@ -49,9 +49,8 @@ describe('Player removeCards', () => {
     const t = () => {
       const player = new Player('Bob');
       player.setHand(['AS', '5H', '2C', '3H']);
-      player.removeCards(['AH', '5H']);
+      expect(player.removeCards(['AH', '5H'])).toHaveReturned();
     };
-    expect(t).toThrow(Error);
   });
 
   test('should remove cards correctly', () => {
@@ -69,8 +68,8 @@ describe('Player finished', () => {
   });
   test('is true if the player has removed all cards', () => {
     player.setHand(['AS']);
-    expect(player.finished()).toBeFalsy();
+    expect(player.isFinished()).toBeFalsy();
     player.removeCards(['AS']);
-    expect(player.finished()).toBeTruthy();
+    expect(player.isFinished()).toBeTruthy();
   });
 });
