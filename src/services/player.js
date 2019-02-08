@@ -29,7 +29,7 @@ export default class Player {
     _.remove(this.hand, n => cards.includes(n));
   }
 
-  finished() {
+  isFinished() {
     return this.hand.length === 0;
   }
 }
