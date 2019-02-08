@@ -271,7 +271,11 @@ class Game extends EventEmitter {
   }
 
   nextTurn() {
-    this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+    // Find next player that has not finished yet
+    while (this.players[this.currentPlayerIndex].isFinished()) {
+      this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+    }
+
     if (this.currentPlayerIndex === this.lastPlayedIndex) {
       this.bomb();
     }
