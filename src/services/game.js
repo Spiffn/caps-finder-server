@@ -215,6 +215,7 @@ class Game extends EventEmitter {
     }
 
     const player = this.players[playerIndex];
+    this.lastPlayedIndex = playerIndex;
 
     if (_.difference(cards, this.hand).length === 0) {
       this.emit('error', `${player.name} does not have the cards ${cards}`);
@@ -237,7 +238,6 @@ class Game extends EventEmitter {
     if (this.isCompletion(cards)) {
       player.removeCards(cards);
       this.bomb();
-      this.lastPlayedIndex = playerIndex;
       this.currentPlayerIndex = playerIndex;
       this.emit('completion', this.cardsPlayed);
       return player.hand;
@@ -253,11 +253,8 @@ class Game extends EventEmitter {
     if (rank === '2') {
       player.removeCards(cards);
       this.bomb();
-      this.lastPlayedIndex = playerIndex;
       return player.hand;
     }
-
-    this.lastPlayedIndex = playerIndex;
 
     if (this.mode === 1 && this.lastRank === rank) {
       this.nextTurn();
@@ -270,10 +267,24 @@ class Game extends EventEmitter {
     return player.hand;
   }
 
+  onlyOnePlayerRemaining() {
+    return (_.filter(this.players, player => !player.isFinished())).length === 1;
+  }
+
   nextTurn() {
+    this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+
     // Find next player that has not finished yet
     while (this.players[this.currentPlayerIndex].isFinished()) {
       this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+    }
+
+    if (this.onlyOnePlayerRemaining()) {
+      console.log('GAME IS OVER YO');
+      this.endGame();
+
+      // TODO: Perform the exchange now LOL
+      process.exit(0);
     }
 
     if (this.currentPlayerIndex === this.lastPlayedIndex) {
@@ -301,6 +312,7 @@ class Game extends EventEmitter {
         player.setHand(this.piles.shift());
         player.hand.sort();
       });
+      // Set starting player index to player with 3C card
       this.currentPlayerIndex = this.getPlayerIndexFor('3C');
       this.advanceGameState(GameStateEnum.PLAYING);
     } else {
@@ -333,6 +345,7 @@ class Game extends EventEmitter {
   }
 
   exchangeSetup() {
+    this.advanceGameState(GameStateEnum.EXCHANGE);
     this.exchangers = {
       prez: this.players[0],
       scum: this.players[this.players.length - 1],
@@ -346,7 +359,7 @@ class Game extends EventEmitter {
 
   reorderPlayers() {
     this.players = this.hierarchy;
-    // Player at index 0 is President
+    // Initially set current player's index to position of president
     this.currentPlayerIndex = 0;
   }
 
@@ -369,6 +382,8 @@ class Game extends EventEmitter {
     this.gamesPlayed += 1;
     console.log('All your cards are belong to us');
     this.emit('end', this.gamesPlayed);
+    this.advanceGameState(GameStateEnum.STANDBY);
+    this.exchangeSetup();
   }
 
   getPlayerIndexFor(target) {
