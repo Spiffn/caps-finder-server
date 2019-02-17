@@ -132,6 +132,7 @@ class Game extends EventEmitter {
         name: player.name,
         handSize: player.hand.length,
       })),
+      pile: this.piles,
     };
   }
 
@@ -187,11 +188,18 @@ class Game extends EventEmitter {
     return this.lastRank === rank && this.numInARow + cards.length === 4;
   }
 
+  /**
+   * Clears the board and sends a board update
+   */
   bomb() {
     this.cardsPlayed = [];
     this.emit(Events.BOARDUPDATE, this.cardsPlayed);
   }
 
+  /**
+   *
+   * @param {string} playerName
+   */
   skip(playerName) {
     if (this.currentPlayer.name === playerName
       && this.cardsPlayed.length > 0) {
@@ -200,6 +208,11 @@ class Game extends EventEmitter {
     }
   }
 
+  /**
+   * Attempt to play cards
+   * @param {string} playerName
+   * @param {Array} cards
+   */
   playCardsByName(playerName, cards) {
     for (let i = 0; i < this.players.length; i += 1) {
       const player = this.players[i];
@@ -325,9 +338,18 @@ class Game extends EventEmitter {
     }
   }
 
-  pickHand(playerIndex, pileIndex) {
+  /**
+   * Pick a hand
+   * @param {string} playerName
+   * @param {int} pileIndex
+   */
+  pickHand(playerName, pileIndex) {
     if (this.gameState !== GameStateEnum.PICK_HAND) {
       throw Error('NICE TRY!!');
+    }
+    const playerIndex = this.players.findIndex(player => player.name === playerName);
+    if (playerIndex < 0) {
+      throw Error('Player doesn\'t exist');
     }
     const pickingPlayerIndex = this.players.length - this.needyPlayers.length;
     if (playerIndex !== pickingPlayerIndex) {
