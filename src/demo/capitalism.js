@@ -53,6 +53,6 @@ game.on(Events.COMPLETION, (cardsPlayed) => {
 });
 
 game.addPlayer('James');
-game.addPlayer('Tim');
+// game.addPlayer('Tim');
 
 game.startGame();

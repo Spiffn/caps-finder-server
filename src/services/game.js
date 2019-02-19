@@ -42,25 +42,27 @@ const GameStateEnum = {
   PLAYING: 'PLAYING',
 };
 
-export { GameStateEnum };
+export { GameStateEnum, isLegalPlay };
 
-export { isLegalPlay };
+/**
+ * allocates the deck to n piles where n = numPiles
+ * @param {int} numPiles
+ */
+function dalloc(numPiles) {
+  const deck = new Deck(generateCards());
+  deck.shuffle();
 
-function dealCards(numPiles) {
-  const deckie = new Deck(generateCards());
-  deckie.shuffle();
+  let piles = [];
 
-  let pilesOfAss = [];
-
-  pilesOfAss = _.map(new Array(numPiles), () => []);
+  piles = _.map(new Array(numPiles), () => []);
 
   let lastDealt = 0;
-  while (deckie.remaining()) {
-    pilesOfAss[lastDealt % numPiles].push(deckie.draw());
+  while (deck.remaining()) {
+    piles[lastDealt % numPiles].push(deck.draw());
     lastDealt += 1;
   }
 
-  return pilesOfAss;
+  return piles;
 }
 
 class Game extends EventEmitter {
@@ -133,6 +135,7 @@ class Game extends EventEmitter {
         handSize: player.hand.length,
       })),
       pile: this.piles,
+      ranking: this.hierarchy,
     };
   }
 
@@ -317,7 +320,7 @@ class Game extends EventEmitter {
     }
     this.reorderPlayers();
     const numPlayers = this.players.length;
-    this.piles = dealCards(numPlayers);
+    this.piles = dalloc(numPlayers);
     this.bomb();
 
     if (this.gamesPlayed === 0) {
@@ -345,19 +348,29 @@ class Game extends EventEmitter {
    */
   pickHand(playerName, pileIndex) {
     if (this.gameState !== GameStateEnum.PICK_HAND) {
-      throw Error('NICE TRY!!');
+      this.emit(Events.ERROR, 'It\'s not time to pick your hand ya goof');
+      return;
     }
     const playerIndex = this.players.findIndex(player => player.name === playerName);
     if (playerIndex < 0) {
-      throw Error('Player doesn\'t exist');
+      this.emit(Events.ERROR, 'Player doesn\'t exist');
+      return;
     }
     const pickingPlayerIndex = this.players.length - this.needyPlayers.length;
     if (playerIndex !== pickingPlayerIndex) {
-      throw Error('Nice try');
+      this.emit(Events.ERROR, 'Who do ya think you are??');
+      return;
     }
     // TODO: check pileIndex is valid
-    // TODO: check playerIndex is valid
+    if (pileIndex >= this.needyPlayers.length) {
+      this.emit(Events.ERROR, 'Nah no pile there bub');
+      return;
+    }
     this.players[playerIndex].setHand(this.piles[pileIndex]);
+
+    // Remove the good ole' selected pile
+    this.piles = this.piles.splice(pileIndex, 1);
+    
     if (!this.needyPlayers) {
       // Time to give up your cards, scum bum
       this.advanceGameState(GameStateEnum.STANDBY);
@@ -405,8 +418,10 @@ class Game extends EventEmitter {
   endGame() {
     this.gamesPlayed += 1;
     console.log('All your cards are belong to us');
-    this.emit(Events.END, this.gamesPlayed);
-    this.exchangeSetup();
+    this.emit(Events.END, _.map(this.hierarchy, p => p.name));
+
+    // The good ole' loggin' statements, for debuggin' and the such
+    console.error(_.map(this.hierarchy, p => p.name));
   }
 
   getPlayerIndexFor(target) {

@@ -8,6 +8,7 @@ const commandType = {
   status: 'status',
   announcement: 'announcement',
   confirmation: 'confirmation',
+  gameover: 'gameover',
   start: 'start',
   play: 'play',
   skip: 'skip',
@@ -40,9 +41,8 @@ class GameController extends EventEmitter {
   constructor() {
     super();
     this.game = new CapsGame();
-    this.game.on(Events.REVEAL, () => {
-      this.broadcastStatus();
-    });
+    this.game.on(Events.REVEAL, this.broadcastStatus);
+    this.game.on(Events.END, this.broadcastStatus);
   }
 
   /**
