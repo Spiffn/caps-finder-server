@@ -23,8 +23,13 @@ export default class Player {
 
   removeCards(cards) {
     if (_.difference(cards, this.hand).length !== 0) {
-      throw Error('cards not in hand');
+      // throw Error('cards not in hand');
+      return;
     }
     _.remove(this.hand, n => cards.includes(n));
+  }
+
+  isFinished() {
+    return this.hand.length === 0;
   }
 }

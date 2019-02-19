@@ -1,6 +1,7 @@
 import EventEmitter from 'events';
 import _ from 'lodash';
 import CapsGame, { GameStateEnum } from './game';
+import Events from './eventNames';
 
 const commandType = {
   message: 'message',
@@ -10,7 +11,9 @@ const commandType = {
   start: 'start',
   play: 'play',
   skip: 'skip',
-  offer: 'offer',
+  take: 'take',
+  give: 'give',
+  pick: 'pick',
   handUpdate: 'handUpdate',
   gameUpdate: 'gameUpdate',
 };
@@ -25,7 +28,9 @@ const gameCommands = [
   commandType.start,
   commandType.play,
   commandType.skip,
-  commandType.offer,
+  commandType.give,
+  commandType.take,
+  commandType.pick,
 ];
 
 /**
@@ -35,6 +40,9 @@ class GameController extends EventEmitter {
   constructor() {
     super();
     this.game = new CapsGame();
+    this.game.on(Events.REVEAL, () => {
+      this.broadcastStatus();
+    });
   }
 
   /**
@@ -48,19 +56,14 @@ class GameController extends EventEmitter {
       return;
     }
     if (gameCommands.includes(command.type)) {
-      switch (command.type) {
-        case commandType.play:
-          this.game.playCardsByName(userId, command.payload.trim().split(','));
-          break;
-        case commandType.start:
-          this.game.startGame();
-          break;
-        case commandType.skip:
-          this.game.skip(userId);
-          break;
-        default:
-          break;
-      }
+      const data = command.payload ? command.payload.trim() : null;
+      const performCommand = {
+        [commandType.play]: () => this.game.playCardsByName(userId, data.split(',')),
+        [commandType.start]: () => this.game.startGame(),
+        [commandType.skip]: () => this.game.skip(),
+        [commandType.pick]: () => this.game.pickHand(userId, parseInt(data, 10)),
+      };
+      performCommand[command.type]();
       this.publish(userId, {
         type: commandType.confirmation,
         timestamp: new Date().getTime(),
@@ -96,7 +99,6 @@ class GameController extends EventEmitter {
     } else if (_.mapKeys(this.game.players, player => player.name)[userId]) {
       this.announce(`${userId} has reconnected!`);
       this.broadcastStatus();
-      // not sending the cards to the reconecting player somehow
     } else {
       this.announce(`${userId} is spectating the game!`);
     }

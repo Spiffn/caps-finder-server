@@ -1,22 +1,11 @@
 import CapsGame from '../services/game';
+import Events from '../services/eventNames';
 
 const stdin = process.openStdin();
 
 const game = new CapsGame();
 
-game.on('stateChange', (change) => {
-  console.log(`advancing to ${change.next}`);
-});
-
-game.addPlayer('James');
-game.addPlayer('Tim');
-game.addPlayer('Lawrence');
-
-game.startGame();
-
-game.printStatus();
-
-stdin.addListener('data', (d) => {
+function playingListener(d) {
   let index = -1;
   let cards = [];
   try {
@@ -32,8 +21,38 @@ stdin.addListener('data', (d) => {
   try {
     console.log(`${game.players[index].name} is playing ${cards}`);
     game.playCards(index, cards);
-    game.printStatus();
   } catch (e) {
     console.log(e.message);
   }
+}
+
+stdin.addListener('data', playingListener);
+
+game.on(Events.STATECHANGE, (change) => {
+  console.log(`advancing to ${change.next}`);
+  console.log('PLSSSSS');
+  if (change.next === 'PLAYING') {
+    game.printStatus();
+  }
+
+  if (change.next === 'EXCHANGE') {
+    console.log('RAZPUTIN');
+    stdin.removeListener('data', playingListener);
+  }
 });
+
+game.on(undefined, () => console.log('save the bees'));
+
+game.on(Events.REVEAL, (tops) => {
+  console.log('Toops + Poops');
+  console.log(`${tops}`);
+});
+
+game.on(Events.COMPLETION, (cardsPlayed) => {
+  console.log(`CARDS PLAYED: ${cardsPlayed}`);
+});
+
+game.addPlayer('James');
+game.addPlayer('Tim');
+
+game.startGame();

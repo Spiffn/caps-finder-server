@@ -2,6 +2,7 @@ import Deck from 'card-deck';
 import _ from 'lodash';
 import EventEmitter from 'events';
 import Player from './player';
+import Events from './eventNames';
 
 const ranks = '3456789TJQKA2';
 const suits = 'HSDC';
@@ -131,17 +132,22 @@ class Game extends EventEmitter {
         name: player.name,
         handSize: player.hand.length,
       })),
+      pile: this.piles,
     };
   }
 
   addPlayer(name) {
-    this.scum.push(new Player(name));
+    if (_.filter(this.scum, s => s.name === name).length === 0) {
+      this.scum.push(new Player(name));
+    }
   }
 
   printStatus() {
-    this.players.forEach((player) => {
-      console.log(`${player.name}: ${player.hand}`);
-    });
+    for (let i = 0; i < this.players.length; i += 1) {
+      const { name, hand } = this.players[i];
+      console.log(`[${i}] ${name}: ${hand}`);
+    }
+
     console.log('cards played');
     console.log(this.cardsPlayed);
     const { mode, numInARow, lastRank } = this;
@@ -182,19 +188,31 @@ class Game extends EventEmitter {
     return this.lastRank === rank && this.numInARow + cards.length === 4;
   }
 
+  /**
+   * Clears the board and sends a board update
+   */
   bomb() {
     this.cardsPlayed = [];
-    this.emit('boardUpdate', this.cardsPlayed);
+    this.emit(Events.BOARDUPDATE, this.cardsPlayed);
   }
 
+  /**
+   *
+   * @param {string} playerName
+   */
   skip(playerName) {
     if (this.currentPlayer.name === playerName
       && this.cardsPlayed.length > 0) {
       this.nextTurn();
-      this.emit('skip');
+      this.emit(Events.SKIP);
     }
   }
 
+  /**
+   * Attempt to play cards
+   * @param {string} playerName
+   * @param {Array} cards
+   */
   playCardsByName(playerName, cards) {
     for (let i = 0; i < this.players.length; i += 1) {
       const player = this.players[i];
@@ -202,31 +220,32 @@ class Game extends EventEmitter {
         return this.playCards(i, cards);
       }
     }
-    this.emit('error', `${playerName} is not playing`);
+    this.emit(Events.ERROR, `${playerName} is not playing`);
     return null;
   }
 
   playCards(playerIndex, cards) {
     if (this.gameState !== GameStateEnum.PLAYING) {
-      this.emit('error', 'We haven\'t started playing yet!');
+      this.emit(Events.ERROR, 'We haven\'t started playing yet!');
       return null;
     }
 
     const player = this.players[playerIndex];
+    this.lastPlayedIndex = playerIndex;
 
     if (_.difference(cards, this.hand).length === 0) {
-      this.emit('error', `${player.name} does not have the cards ${cards}`);
+      this.emit(Events.ERROR, `${player.name} does not have the cards ${cards}`);
       return null;
     }
 
     if (!this.isPlayable(cards)) {
-      this.emit('error', `${cards} cannot be played`);
+      this.emit(Events.ERROR, `${cards} cannot be played`);
       return null;
     }
 
     if (this.isFirstPlay) {
       if (!cards.includes('3C')) {
-        this.emit('error', 'First play must include the 3 of clubs');
+        this.emit(Events.ERROR, 'First play must include the 3 of clubs');
         return null;
       }
       this.isFirstPlay = false;
@@ -235,14 +254,13 @@ class Game extends EventEmitter {
     if (this.isCompletion(cards)) {
       player.removeCards(cards);
       this.bomb();
-      this.lastPlayedIndex = playerIndex;
       this.currentPlayerIndex = playerIndex;
-      this.emit('completion', this.cardsPlayed);
+      this.emit(Events.COMPLETION, this.cardsPlayed);
       return player.hand;
     }
 
     if (this.currentPlayerIndex !== playerIndex) {
-      this.emit('error', `it's not your turn ${this.players[playerIndex].name}!`);
+      this.emit(Events.ERROR, `it's not your turn ${this.players[playerIndex].name}!`);
       return null;
     }
 
@@ -251,11 +269,8 @@ class Game extends EventEmitter {
     if (rank === '2') {
       player.removeCards(cards);
       this.bomb();
-      this.lastPlayedIndex = playerIndex;
       return player.hand;
     }
-
-    this.lastPlayedIndex = playerIndex;
 
     if (this.mode === 1 && this.lastRank === rank) {
       this.nextTurn();
@@ -264,16 +279,33 @@ class Game extends EventEmitter {
     player.removeCards(cards);
     this.cardsPlayed.push(cards);
     this.nextTurn();
-    this.emit('boardUpdate', this.cardsPlayed);
+    this.emit(Events.BOARDUPDATE, this.cardsPlayed);
     return player.hand;
+  }
+
+  onlyOnePlayerRemaining() {
+    return (_.filter(this.players, player => !player.isFinished())).length === 1;
   }
 
   nextTurn() {
     this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+
+    // Find next player that has not finished yet
+    while (this.players[this.currentPlayerIndex].isFinished()) {
+      this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+    }
+
+    if (this.onlyOnePlayerRemaining()) {
+      console.log('GAME IS OVER YO');
+      this.endGame();
+
+      // TODO: Perform the exchange now LOL
+    }
+
     if (this.currentPlayerIndex === this.lastPlayedIndex) {
       this.bomb();
     }
-    this.emit('nextTurn', this.currentPlayerIndex);
+    this.emit(Events.NEXTTURN, this.currentPlayerIndex);
     if (this.hierarchy.includes(this.currentPlayerIndex)) {
       this.nextTurn();
     }
@@ -295,20 +327,29 @@ class Game extends EventEmitter {
         player.setHand(this.piles.shift());
         player.hand.sort();
       });
+      // Set starting player index to player with 3C card
       this.currentPlayerIndex = this.getPlayerIndexFor('3C');
       this.advanceGameState(GameStateEnum.PLAYING);
     } else {
       this.isFirstPlay = false;
-      this.emit('reveal', _.map(this.piles, pile => pile[0]));
+      // Setup relationships between exchangers
       this.reorderPlayers();
-      // President resides at index 0 of reordered players
-      this.currentPlayerIndex = 0;
+      this.exchangeSetup();
     }
   }
 
-  pickHand(playerIndex, pileIndex) {
+  /**
+   * Pick a hand
+   * @param {string} playerName
+   * @param {int} pileIndex
+   */
+  pickHand(playerName, pileIndex) {
     if (this.gameState !== GameStateEnum.PICK_HAND) {
       throw Error('NICE TRY!!');
+    }
+    const playerIndex = this.players.findIndex(player => player.name === playerName);
+    if (playerIndex < 0) {
+      throw Error('Player doesn\'t exist');
     }
     const pickingPlayerIndex = this.players.length - this.needyPlayers.length;
     if (playerIndex !== pickingPlayerIndex) {
@@ -319,12 +360,13 @@ class Game extends EventEmitter {
     this.players[playerIndex].setHand(this.piles[pileIndex]);
     if (!this.needyPlayers) {
       // Time to give up your cards, scum bum
-      this.advanceGameState(GameStateEnum.EXCHANGE);
+      this.advanceGameState(GameStateEnum.STANDBY);
       this.exchangeSetup();
     }
   }
 
   exchangeSetup() {
+    this.advanceGameState(GameStateEnum.EXCHANGE);
     this.exchangers = {
       prez: this.players[0],
       scum: this.players[this.players.length - 1],
@@ -334,10 +376,15 @@ class Game extends EventEmitter {
       [_, this.exchangers.vicePrez] = this.players;
       this.exchangers.viceScum = this.players[this.players.length - 2];
     }
+
+    // Show card at top of each pile
+    this.emit(Events.REVEAL, _.map(this.piles, pile => pile[0]));
   }
 
   reorderPlayers() {
     this.players = this.hierarchy;
+    // Initially set current player's index to position of president
+    this.currentPlayerIndex = 0;
   }
 
   finishExchange() {
@@ -351,14 +398,15 @@ class Game extends EventEmitter {
   }
 
   advanceGameState(state) {
-    this.emit('stateChange', { prev: this.gameState, next: state });
+    this.emit(Events.STATECHANGE, { prev: this.gameState, next: state });
     this.gameState = state;
   }
 
   endGame() {
     this.gamesPlayed += 1;
     console.log('All your cards are belong to us');
-    this.emit('end', this.gamesPlayed);
+    this.emit(Events.END, this.gamesPlayed);
+    this.exchangeSetup();
   }
 
   getPlayerIndexFor(target) {
